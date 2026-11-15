@@ -1,6 +1,6 @@
 extends ShowerBase
 # Shopping mall: a lipas (cockroach) hunts the boy through a dark maze. Run to the toilet (TANDAS) at the far end,
-# spray the lipas dead, then hold SPACE to wash. Caught by the lipas = viral.
+# spray the lipas dead, then the shower runs by itself. Caught by the lipas = viral.
 
 const T := 28
 const ORIGIN := Vector2(20, 84)
@@ -36,6 +36,8 @@ var scene_t := 0.0
 var inside := false
 var inside_t := 0.0
 var shower_on := false
+var shower_t := 0.0
+const SHOWER_SECS := 3.0
 var lipas_dead := false
 var skitter_t := 0.0
 var spraying := false
@@ -159,7 +161,7 @@ func _player_center() -> Vector2:
 
 
 func can_wash() -> bool:
-	return shower_on
+	return false
 
 
 func _move_lipas(target_cell: Vector2i, delta: float) -> void:
@@ -267,6 +269,13 @@ func _inside_tick(delta: float) -> void:
 		shower_on = true
 		avatar.set_showering(true)
 		Sfx.loop("water_loop")
+	if shower_on:
+		shower_t += delta
+		var k := clampf(shower_t / SHOWER_SECS, 0.0, 1.0)
+		for i in PARTS.size():
+			progress[i] = k
+		if k >= 1.0:
+			_finish()
 
 
 func _on_finished(score: float) -> void:
@@ -469,9 +478,10 @@ func _paint_top(o: Overlay) -> void:
 		elif lipas_dead and not shower_on:
 			msg = "Lipas dah mati. Fuh."
 		elif shower_on:
-			msg = "Tahan SPACE untuk mandi!"
+			msg = "Mandi automatik... segar!"
 		Ui.text(o, Vector2(32, 478), msg, 15, Color.WHITE, 3)
 		if shower_on:
+			Fx.bubbles(o, avatar.position + Vector2(0, -18), clampf(shower_t / SHOWER_SECS, 0.0, 1.0), scene_t)
 			for i in PARTS.size():
 				o.draw_rect(Rect2(440.0 + i * 48.0, 466, 42, 12), Color(0.03, 0, 0.07))
 				o.draw_rect(Rect2(440.0 + i * 48.0, 466, 42.0 * progress[i], 12), Ui.GREEN if progress[i] >= 1.0 else Ui.WATER)

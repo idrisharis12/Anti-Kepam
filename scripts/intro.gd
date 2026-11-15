@@ -1,5 +1,5 @@
 extends Node2D
-# Cinematic intro: rainy bedroom, WhatsApp breakup on the phone, caption bubble under the phone. ENTER skips.
+# Cinematic intro: title card, sunset skyline, rainy bedroom + WhatsApp breakup, station montage, lake sunrise. Hold ENTER (Flow) or ENTER skips; click/tap advances.
 
 const W := 960.0
 const H := 540.0
@@ -25,12 +25,39 @@ var typing_row: Control
 var typing_dots: Control
 var cap_panel: Panel
 var caption: Label
+var stage: Overlay
+var post: Overlay
+var vig: TextureRect
+var mode := "title"
+var mt := 0.0
+var tap := false
+var shake_a := 0.0
+var title_k := 0.0
+var sub_k := 0.0
+var vhs_k := 1.0
+var flash := 0.0
+var cut := 0.0
+var wipe_k := 0.0
+var heart_k := 0.0
+var city_scroll := 0.0
+var stink_k := 0.0
+var mont_i := 0
+var cd := 420.0
+var lake_k := 0.0
+var go_k := 0.0
+var cards: Array = []
+var card_names := ["R&R", "Gas Station", "LRT", "Shopping Mall"]
 
 
 func _ready() -> void:
 	Sfx.play_music("intro")
-	Sfx.loop("rain_loop", -10.0)
 	_rect(Vector2.ZERO, Vector2(W, H), Color.BLACK, self)
+	for n in ["rnr_bg", "gas_bg", "lrt_bg", "mall_bg"]:
+		cards.append(load("res://assets/%s.png" % n))
+	cards.append(load("res://assets/lake_bg.png"))
+	stage = Overlay.new()
+	stage.painter = _paint_stage
+	add_child(stage)
 
 	room = TextureRect.new()
 	room.texture = load("res://assets/intro_bg.png")
@@ -40,6 +67,7 @@ func _ready() -> void:
 	room.position = Vector2(0, -250)
 	room.pivot_offset = Vector2(516, 394)
 	room.modulate = Color.BLACK
+	room.visible = false
 	add_child(room)
 
 	rain_clip = Control.new()
@@ -62,11 +90,12 @@ func _ready() -> void:
 	gt.fill_to = Vector2(1.0, 0.5)
 	gt.width = 512
 	gt.height = 288
-	var vig := TextureRect.new()
+	vig = TextureRect.new()
 	vig.texture = gt
 	vig.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	vig.size = Vector2(W, H)
 	vig.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	vig.visible = false
 	add_child(vig)
 
 	_rect(Vector2.ZERO, Vector2(W, 40), Color.BLACK, self)
@@ -74,6 +103,9 @@ func _ready() -> void:
 
 	_build_phone()
 	_build_caption()
+	post = Overlay.new()
+	post.painter = _paint_post
+	add_child(post)
 	var hint := Ui.label(self, "ENTER: langkau", Vector2(760, 510), 13, Color(0.5, 0.5, 0.6), 180, false)
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_run()
@@ -274,10 +306,17 @@ func _draw_dots() -> void:
 func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and (event.keycode == KEY_ENTER or event.keycode == KEY_KP_ENTER):
 		skipped = true
+	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		tap = true
 
 
 func _process(delta: float) -> void:
 	t += delta
+	mt += delta
+	shake_a = maxf(0.0, shake_a - delta * 26.0)
+	stage.position = Vector2(randf_range(-1, 1), randf_range(-1, 1)) * shake_a
+	if mode == "city":
+		city_scroll += delta * 38.0
 	for d in drops:
 		d.position.y += 380.0 * delta
 		d.position.x -= 30.0 * delta
@@ -294,31 +333,185 @@ func hold(sec: float) -> void:
 	while el < sec and not skipped:
 		await get_tree().process_frame
 		el += get_process_delta_time()
+		if tap:
+			tap = false
+			break
 
 
 func say(text: String, dur: float) -> void:
 	caption.text = text
-	create_tween().tween_property(cap_panel, "modulate:a", 1.0, 0.6)
-	await hold(0.6 + dur)
-	create_tween().tween_property(cap_panel, "modulate:a", 0.0, 0.5)
-	await hold(0.6)
+	create_tween().tween_property(cap_panel, "modulate:a", 1.0, 0.4)
+	await hold(0.4 + dur)
+	create_tween().tween_property(cap_panel, "modulate:a", 0.0, 0.3)
+	await hold(0.3)
+
+
+func _tw(obj: Object, prop: String, to: Variant, dur: float) -> Tween:
+	var tw := create_tween()
+	tw.tween_property(obj, prop, to, dur)
+	return tw
+
+
+func _whip() -> void:
+	Sfx.play("whoosh", -4.0, 1.2)
+	wipe_k = 0.0
+	_tw(self, "wipe_k", 1.0, 0.5)
 
 
 func _run() -> void:
-	create_tween().tween_property(room, "modulate", DIM, 3.0)
-	var zoom := create_tween()
-	zoom.tween_property(room, "scale", Vector2(1.35, 1.35), 45.0).set_trans(Tween.TRANS_SINE)
+	vhs_k = 1.0
+	await hold(0.7)
+	Sfx.play("stinger", -2.0)
+	shake_a = 16.0
+	flash = 1.0
+	_tw(self, "flash", 0.0, 0.5)
+	_tw(self, "title_k", 1.0, 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	await hold(1.5)
+	_tw(self, "sub_k", 1.0, 0.8)
+	await hold(1.9)
+	_tw(self, "title_k", 0.0, 0.4)
+	_tw(self, "sub_k", 0.0, 0.4)
+	await hold(0.5)
+
+	mode = "city"
+	mt = 0.0
+	cut = 1.0
+	_tw(self, "cut", 0.0, 1.2)
+	_tw(self, "stink_k", 1.0, 7.0)
+	vhs_k = 0.25
+	await hold(0.8)
+	await say("Kota Kepam. Senja.", 1.6)
+	Sfx.play("ghost", -14.0, 0.7)
+	await say("Ada bau yang makin dekat...", 1.8)
 	await hold(0.6)
-	await say("Malam. Hujan tak berhenti.", 2.4)
-	await say("Dah tiga hari dia tak mandi.", 2.4)
-	await say("Telefonnya bergetar...", 1.4)
+	_whip()
+	await hold(0.25)
+
+	mode = "room"
+	room.visible = true
+	vig.visible = true
+	stink_k = 0.0
+	room.modulate = DIM
+	Sfx.loop("rain_loop", -10.0)
+	_tw(room, "scale", Vector2(1.3, 1.3), 40.0).set_trans(Tween.TRANS_SINE)
+	await hold(0.6)
+	await say("Malam. Dah tiga hari dia tak mandi.", 1.8)
 	await _phone_scene()
-	await say("Tiada balasan.", 2.2)
-	await say("Dia depresi. Dia jadi makin kepam.", 3.0)
-	create_tween().tween_property(room, "modulate", Color.BLACK, 2.0)
-	await hold(2.4)
-	await say("\"Aku akan buktikan aku tak kepam.\"", 2.8)
+	await _heartbreak()
+	Sfx.stop_loop("rain_loop")
+	await _montage()
 	_go()
+
+
+func _heartbreak() -> void:
+	_tw(room, "modulate", Color(0.42, 0.45, 0.58), 1.0)
+	Sfx.loop("pulse_loop", -9.0)
+	_tw(self, "heart_k", 1.0, 1.0)
+	await say("Tiada balasan.", 1.5)
+	await say("Dia depresi. Dia jadi makin kepam.", 2.0)
+	await say("\"Aku akan buktikan aku tak kepam.\"", 1.8)
+	Sfx.stop_loop("pulse_loop")
+	_tw(self, "heart_k", 0.0, 0.3)
+	_whip()
+	await hold(0.25)
+
+
+func _montage() -> void:
+	mode = "montage"
+	mt = 0.0
+	room.visible = false
+	vig.visible = false
+	vhs_k = 0.4
+	cd = 420.0
+	Sfx.play_music("station")
+	_tw(self, "cd", 9.0, 5.6)
+	for i in 4:
+		mont_i = i
+		Sfx.play("beep", -6.0, 0.9 + i * 0.1)
+		shake_a = 5.0
+		await hold(1.15)
+		if i < 3:
+			_whip()
+			await hold(0.2)
+	_whip()
+	await hold(0.2)
+	mode = "lake"
+	mt = 0.0
+	vhs_k = 0.0
+	Sfx.play_music("lake")
+	_tw(self, "lake_k", 1.0, 2.0)
+	await hold(1.2)
+	Sfx.play("stinger", -2.0)
+	shake_a = 14.0
+	flash = 0.8
+	_tw(self, "flash", 0.0, 0.5)
+	_tw(self, "go_k", 1.0, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	await hold(2.3)
+	_tw(self, "cut", 1.0, 0.6)
+	await hold(0.7)
+
+
+func _paint_stage(o: Overlay) -> void:
+	if mode == "city":
+		IntroFx.sky(o, Color(0.1, 0.02, 0.28), Color(0.85, 0.2, 0.5), Color(1.0, 0.65, 0.3), 340.0)
+		IntroFx.sun(o, Vector2(640, 290), 70.0)
+		IntroFx.skyline(o, city_scroll * 0.35, 350.0, Color(0.38, 0.1, 0.42), 1.0, 40.0, 130.0, false, t)
+		IntroFx.skyline(o, city_scroll * 0.7, 410.0, Color(0.1, 0.02, 0.2), 9.0, 70.0, 210.0, true, t)
+		o.draw_rect(Rect2(0, 410, W, H - 410), Color(0.06, 0.01, 0.12))
+		o.draw_rect(Rect2(0, 410, W, 4), Ui.PINK)
+		for i in 12:
+			o.draw_rect(Rect2(fposmod(i * 120.0 - city_scroll * 1.6, W + 120.0) - 60.0, 470, 60, 5), Color(1.0, 0.72, 0.15, 0.7))
+		IntroFx.boy_silhouette(o, Vector2(320, 452), t)
+		IntroFx.stink(o, t, stink_k)
+	elif mode == "montage":
+		var tex: Texture2D = cards[mont_i]
+		var k := fposmod(mt, 100.0)
+		var sc := 1.04 + 0.03 * sin(k * 3.0)
+		o.draw_set_transform(Vector2(W / 2, H / 2), 0.0, Vector2(sc, sc))
+		o.draw_texture_rect_region(tex, Rect2(-W / 2, -H / 2, W, H), Rect2(0, 212, 1024, 576))
+		o.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		o.draw_rect(Rect2(0, 0, W, H), Color(0.1, 0.0, 0.2, 0.25))
+		var nm: String = card_names[mont_i]
+		o.draw_rect(Rect2(0, 396, W, 60), Color(0.1, 0.0, 0.13, 0.75))
+		IntroFx.glow_text(o, W / 2, 440, nm, 42, Ui.CREAM, Ui.PINK, 1.0, 1.0)
+		var secs := int(cd)
+		var clock := "%02d:%02d" % [secs / 60, secs % 60]
+		var blink := 1.0 if fmod(t, 0.6) < 0.4 else 0.55
+		o.draw_rect(Rect2(250, 56, 460, 52), Color(0.1, 0.0, 0.13, 0.8))
+		var line := Loc.t("GF akan kahwin...") + "  " + clock
+		Ui.text(o, Vector2(W / 2 - Ui.text_width(line, 24) / 2.0, 92), line, 24, Color(1.0, 0.3, 0.35, blink), 5)
+	elif mode == "lake":
+		var tex: Texture2D = cards[4]
+		var br := lerpf(0.1, 1.0, lake_k)
+		o.draw_set_transform(Vector2(W / 2, H / 2), 0.0, Vector2.ONE * (1.0 + 0.05 * (1.0 - lake_k)))
+		o.draw_texture_rect_region(tex, Rect2(-W / 2, -H / 2, W, H), Rect2(0, 212, 1024, 576), Color(br, br, br))
+		o.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		o.draw_rect(Rect2(0, 0, W, H), Color(1.0, 0.8, 0.4, 0.15 * lake_k))
+
+
+func _paint_post(o: Overlay) -> void:
+	if mode == "title":
+		var base_y := 270.0
+		IntroFx.glow_text(o, W / 2, base_y, "ANTI KEPAM", 86, Ui.CREAM, Color(0.3, 1.0, 0.5), 0.6 + 0.4 * title_k, clampf(title_k * 2.0, 0.0, 1.0))
+		if sub_k > 0.0:
+			var s := "Mandi dulu, baru boleh cinta."
+			Ui.text(o, Vector2(W / 2 - Ui.text_width(s, 24) / 2.0, 318), s, 24, Color(1.0, 0.72, 0.15, sub_k), int(4 * sub_k))
+	if heart_k > 0.0:
+		var beat := pow(maxf(0.0, sin(t * 7.0)), 6.0)
+		o.draw_rect(Rect2(0, 0, W, 30), Color(0.8, 0.0, 0.2, 0.3 * beat * heart_k))
+		o.draw_rect(Rect2(0, H - 30, W, 30), Color(0.8, 0.0, 0.2, 0.3 * beat * heart_k))
+		o.draw_rect(Rect2(0, 0, W, H), Color(0.6, 0.0, 0.15, 0.12 * beat * heart_k))
+	if mode == "lake" and go_k > 0.0:
+		IntroFx.glow_text(o, W / 2, 275, "MANDI SEKARANG!", 78, Color(1.0, 1.0, 0.85), Color(0.2, 0.8, 1.0), 0.6 + 0.4 * go_k, clampf(go_k * 2.0, 0.0, 1.0))
+	if cut > 0.0:
+		o.draw_rect(Rect2(0, 0, W, H), Color(0, 0, 0, cut))
+	IntroFx.wipe(o, wipe_k)
+	if flash > 0.0:
+		o.draw_rect(Rect2(0, 0, W, H), Color(1, 1, 1, flash * 0.6))
+	if vhs_k > 0.0:
+		IntroFx.vhs(o, t, vhs_k, vhs_k)
+	o.draw_rect(Rect2(0, 0, W, 40), Color.BLACK)
+	o.draw_rect(Rect2(0, H - 40, W, 40), Color.BLACK)
 
 
 func _notify_pop() -> void:
@@ -332,43 +525,43 @@ func _notify_pop() -> void:
 
 
 func _phone_scene() -> void:
-	create_tween().tween_property(room, "modulate", Color(0.3, 0.3, 0.4), 1.0)
+	create_tween().tween_property(room, "modulate", Color(0.3, 0.3, 0.4), 0.8)
 	Sfx.play("whoosh", -4.0)
 	create_tween().tween_property(phone, "position:y", PHONE_Y, 1.1).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	await hold(1.6)
+	await hold(0.9)
 	sub_text = "online"
 	_notify_pop()
-	await hold(1.2)
+	await hold(0.8)
 	sub_text = "menaip..."
 	_show_typing()
-	await hold(2.2)
+	await hold(1.3)
 	create_tween().tween_property(badge, "scale", Vector2.ZERO, 0.2)
 	sub_text = "online"
 	Sfx.play("notify", -4.0)
 	_bubble("You terlalu kepam untuk I,", false, "11:46")
-	await hold(0.9)
+	await hold(0.6)
 	sub_text = "menaip..."
 	_show_typing()
-	await hold(1.1)
+	await hold(0.8)
 	sub_text = "online"
 	Sfx.play("notify", -4.0)
 	_bubble("kita break.", false, "11:46")
 	face_g = 0.5
-	await hold(0.9)
+	await hold(0.6)
 	_show_typing()
-	await hold(0.9)
+	await hold(0.7)
 	Sfx.play("notify", -2.0)
 	_bubble("Bye.", false, "11:47")
 	face_g = 0.75
-	await hold(1.2)
+	await hold(0.8)
 	sub_text = "terakhir dilihat sebentar tadi"
-	await hold(2.4)
+	await hold(1.3)
 	Sfx.play("click")
 	_bubble("Sayang?", true, "11:52")
-	await hold(1.6)
+	await hold(0.9)
 	Sfx.play("click")
 	_bubble("tunggu dulu...", true, "11:52")
-	await hold(3.0)
+	await hold(1.6)
 	create_tween().tween_property(phone, "position:y", 570.0, 1.0).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
 	create_tween().tween_property(room, "modulate", Color(0.55, 0.55, 0.65), 1.2)
 	await hold(1.3)
@@ -376,6 +569,8 @@ func _phone_scene() -> void:
 
 func _go() -> void:
 	Sfx.stop_loop("rain_loop")
+	Sfx.stop_loop("pulse_loop")
+	post.visible = false
 	var comic := ComicStrip.new()
 	add_child(comic)
 	await comic.finished

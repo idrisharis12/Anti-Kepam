@@ -10,6 +10,8 @@ var typing_for := 0.8
 
 
 static func show_on(parent: Node, key: String, secs := 5.0) -> NpcChat:
+	if not key.begins_with("ping_"):
+		return null
 	var who_name := "Hafiz"
 	if key.begins_with("gas_"):
 		who_name = "Abang Pam"

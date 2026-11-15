@@ -63,15 +63,6 @@ func _ready() -> void:
 		ids.append(labels[i])
 		b.pressed.connect(_on_button.bind(i))
 		buttons.append(b)
-	if Save.last_loss != "" and GameState.LOSE_TEXT.has(Save.last_loss):
-		var ll := _label(Loc.t("Kali lepas:") + " " + Loc.t(GameState.LOSE_TEXT[Save.last_loss]), Vector2(300, 190), 13, Color(1.0, 0.6, 0.65))
-		ll.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		ll.custom_minimum_size = Vector2(380, 0)
-		ll.size = Vector2(380, 44)
-		ll.position = Vector2(230, 168)
-		ll.pivot_offset = Vector2.ZERO
-		ll.add_theme_color_override("font_outline_color", Color(0.2, 0.0, 0.15))
-		ll.add_theme_constant_override("outline_size", 6)
 
 	_label("v0.1  -  Game Jam 2026", Vector2(480, 512), 14, Color(1, 1, 1, 0.6))
 	_lang_buttons()

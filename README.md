@@ -23,33 +23,37 @@ He has to wash at four places around town, then jump into the Golden Lake, befor
 | WASD / arrow keys | Walk around the hub |
 | SPACE | Wash / action |
 | Mouse (drag, click) | Scrub, aim, answer |
-| E | Answer a knock at the door |
+| E | Answer a knock at the door / hide in the mall |
 | B | Buy soap or tissue near the hygiene shop |
-| ESC | Audio settings (anywhere) |
+| ESC | Settings: audio, options (language, touch buttons, accessibility), key rebinding |
+
+On phones and tablets an on-screen joystick and buttons appear (they can be turned on or off in the ESC settings). Gamepads work too.
 
 ### Stations
 
 1. **R&R** - time your taps to wash without falling asleep.
 2. **Gas Station** - scrub graffiti and bacteria off a public toilet with the mouse (soap = bigger eraser) and answer the door when people knock.
 3. **LRT** - swipe your card through the reader, answer 6 hygiene questions, then watch him enter the stall (door opens, closes) and shower.
-4. **Shopping Mall** - run through a neon maze to four shower points while a ghost chases you.
-5. **Golden Lake** - he jumps in off the bank, then you hold SPACE for the final shower. A brighter lake needs better scores at the stations.
+4. **Shopping Mall** - run through a neon maze to the toilet while a lipas (cockroach) hunts you. Hide in spots to throw it off, spray it dead at the door, then the shower runs by itself.
+5. **Golden Lake** - he jumps in off the bank and the game goes straight to the ending. A brighter lake needs better scores at the stations.
 
 Kuman (germs) are the currency. Spend them on soap and tissue at the hub shop.
 
 ### Bottom bar
 
 - **Kepam Negeri** - a green gas-cloud bar that fills as the smell spreads across the state.
-- **GF face** - the girlfriend's face goes from hopeful to disappointed, sad, crying and finally numb as her timer runs out.
+- **Mood** - the boy's face goes from hopeful to worried, sad, crying and finally numb as the girlfriend's timer runs out.
 
 ### You lose if
 
 - The kepam spread reaches 100% (the state goes viral on Berita Kepam 26).
 - The girlfriend's timer runs out and she marries someone else.
-- The ghost at the mall catches the boy.
+- The lipas at the mall catches the boy.
 - The lake is too dim (final score below 60%).
 
-Each loss has its own cinematic ending. Winning has one too.
+Each loss has its own cinematic ending. Winning has one too, plus a secret ending for a perfect run with no soap bought.
+
+The game is playable in Malay or English (MS / EN on the menu or in settings). Pick Santai, Biasa or Kepam Gila on the hub for difficulty.
 
 ## Run it
 
@@ -81,6 +85,14 @@ Autoloads: `GameState` (progress, score, timers) and `Sfx` (music, sound effects
 ## Status
 
 Game jam build. Sound effects are generated placeholders.
+
+### Web build (GamePix)
+
+```sh
+godot --headless --path . --export-release Web build/web/index.html
+```
+
+The Web preset has threads off, so it needs no special server headers. Zip the contents of `build/web/` with `index.html` at the zip root.
 
 ## Credits
 

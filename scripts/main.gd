@@ -12,8 +12,6 @@ const BONUS := Vector2(264, 263)
 const RADIUS := 34.0
 const SOAP_COST := 3
 const TISSUE_COST := 2
-const UPGRADE_IDS := ["mop", "spray", "shower"]
-const UPGRADE_NAMES := {"mop": "Mop", "spray": "Spray", "shower": "Pancur"}
 const DIFF_RECTS := [Rect2(650, 456, 86, 24), Rect2(742, 456, 86, 24), Rect2(834, 456, 92, 24)]
 const SELECT_RECT := Rect2(806, 166, 120, 20)
 
@@ -102,22 +100,8 @@ func _unhandled_input(event: InputEvent) -> void:
 				return
 	elif event is InputEventKey and event.pressed and not event.echo:
 		var k: int = event.keycode
-		if k >= KEY_1 and k <= KEY_3 and _near_shop():
-			var id: String = UPGRADE_IDS[k - KEY_1]
-			if GameState.buy_upgrade(id):
-				Sfx.play("coin")
-				_flash(Loc.t("Dibeli! %s naik taraf") % Loc.t(UPGRADE_NAMES[id]))
-			elif GameState.upgrade_level(id) >= int(GameState.UPGRADE_MAX[id]):
-				_flash("Dah maksimum.")
-			else:
-				Sfx.play("fail")
-				_flash("Kuman tak cukup!")
-		elif k == KEY_P:
+		if k == KEY_P:
 			get_tree().change_scene_to_file("res://scenes/station_select.tscn")
-
-
-func _near_shop() -> bool:
-	return player.position.distance_to(BONUS + Vector2(0, 40)) < 130
 
 
 func _flash(s: String) -> void:
@@ -229,14 +213,6 @@ func _paint_list(o: Overlay) -> void:
 		Ui.text(o, Vector2(r.position.x + (r.size.x - Ui.text_width(s, 12)) / 2.0, r.position.y + 16), s, 12, Color.WHITE if on else Color(0.75, 0.65, 0.8), 3)
 	o.draw_style_box(Ui.box(Color(0.14, 0.04, 0.2), Ui.WATER, 8, 2), SELECT_RECT)
 	Ui.text(o, SELECT_RECT.position + Vector2(10, 16), "Pilih Stesen", 12, Color.WHITE, 3)
-	for k in UPGRADE_IDS.size():
-		var id: String = UPGRADE_IDS[k]
-		var lv := GameState.upgrade_level(id)
-		var maxed := lv >= int(GameState.UPGRADE_MAX[id])
-		var c := Vector2(170 + k * 94, 352)
-		var s := "%d %s %s" % [k + 1, Loc.t(UPGRADE_NAMES[id]), "MAX" if maxed else "%dK" % int(GameState.UPGRADE_COST[id])]
-		_pill(o, c, s, Ui.GREEN if maxed else Ui.WATER)
-		_pill(o, c + Vector2(0, 22), "Lv %d/%d" % [lv, int(GameState.UPGRADE_MAX[id])], Ui.ORANGE)
 
 
 func _set_hint() -> void:
@@ -273,8 +249,6 @@ func _process(delta: float) -> void:
 				msg.text = Loc.t("Dibeli! %s +1") % Loc.t("Sabun" if item == "soap" else "Tisu")
 			else:
 				msg.text = "Kuman tak cukup!"
-	if not (near_soap or near_tissue) and flash_msg <= 0.0 and _near_shop():
-		msg.text = Loc.t("Kedai: 1 mop, 2 spray, 3 pancur")
 	if not Input.is_key_pressed(KEY_B):
 		buy_lock = false
 

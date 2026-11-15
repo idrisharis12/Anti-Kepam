@@ -18,8 +18,11 @@ var jump_t := 0.0
 var jumping := false
 var splash_t := -1.0
 var diver: AvatarView
-const JUMP_FROM := Vector2(70, 250)
-const JUMP_TO := Vector2(270, 395)
+var shimmer_t := -1.0
+var leaving := false
+const SHIMMER_DUR := 1.0
+const JUMP_FROM := Vector2(250, 250)
+const JUMP_TO := Vector2(480, 395)
 const JUMP_DUR := 1.6
 
 
@@ -32,6 +35,10 @@ func _build() -> void:
 	bg.color = Color(0.1, 0.03, 0.12)
 	lake = add_backdrop("res://assets/lake_bg.png")
 	lake.modulate = Color(0.3, 0.3, 0.4)
+	if GameState.lose_reason == "":
+		lake.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		lake.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+		lake.size = Vector2(960, 540)
 	for l in [title, status, body]:
 		l.visible = false
 	var panel := Ui.panel(self, Rect2(556, 10, 388, 474), Ui.PINK)
@@ -40,6 +47,7 @@ func _build() -> void:
 	head.add_theme_constant_override("outline_size", 8)
 	sub = Ui.label(self, "Mandi terakhir!", Vector2(556, 62), 14, Ui.PINK, 388)
 	Ui.rule(self, Vector2(574, 90), 352, Ui.PINK)
+	var rule: Node = get_child(get_child_count() - 1)
 	result = Ui.label(self, "", Vector2(574, 100), 16, Ui.CREAM, 352, false)
 	var ov := Overlay.new()
 	ov.painter = _paint
@@ -66,7 +74,10 @@ func _build() -> void:
 	jumping = true
 	active = false
 	Sfx.play("notify")
-	result.text = "Terjun! Tahan SPACE untuk mandi penuh. Tasik cerah ikut skor semua mandi tadi."
+	panel.visible = false
+	(rule as CanvasItem).visible = false
+	for l in [head, sub, result]:
+		l.visible = false
 
 
 func _process(delta: float) -> void:
@@ -79,17 +90,23 @@ func _process(delta: float) -> void:
 			set_process(false)
 			get_tree().change_scene_to_file("res://scenes/outro.tscn")
 		return
-	super._process(delta)
-	if active and not done and Input.is_key_pressed(KEY_SPACE):
-		Sfx.loop("water_loop")
-	else:
-		Sfx.stop_loop("water_loop")
-	var clean := 0.0
-	for p in progress:
-		clean += p
-	clean /= PARTS.size()
-	bright = base_avg * 0.7 + clean * 0.3
+	if leaving:
+		return
+	shimmer_t += delta
+	var k := clampf(shimmer_t / SHIMMER_DUR, 0.0, 1.0)
+	bright = lerpf(base_avg * 0.7, base_avg * 0.7 + 0.3, k)
 	_set_glow(bright)
+	if shimmer_t >= SHIMMER_DUR + 0.3:
+		_auto_finish()
+
+
+func _auto_finish() -> void:
+	leaving = true
+	Sfx.stop_loop("water_loop")
+	bright = base_avg * 0.7 + 0.3
+	GameState.won = bright >= WIN_BRIGHTNESS
+	set_process(false)
+	get_tree().change_scene_to_file("res://scenes/outro.tscn")
 
 
 func _jump(delta: float) -> void:
@@ -113,8 +130,8 @@ func _jump(delta: float) -> void:
 		diver.position.y = JUMP_TO.y + 22 + sin(splash_t * 3.0) * 3.0
 		if splash_t > 1.6:
 			jumping = false
-			active = true
-			result.text = "Terjun! Tahan SPACE untuk mandi penuh. Tasik cerah ikut skor semua mandi tadi."
+			shimmer_t = 0.0
+			Sfx.loop("water_loop")
 
 
 func _exit_tree() -> void:
@@ -139,9 +156,9 @@ func _paint(o: Overlay) -> void:
 		var k := clampf(bright / 0.9, 0.0, 1.0)
 		if k > 0.25:
 			var bl := (k - 0.25) / 0.75
-			o.draw_circle(Vector2(270, 200), 190.0, Color(1.0, 0.85, 0.4, 0.12 * bl))
-			o.draw_circle(Vector2(270, 200), 120.0, Color(1.0, 0.9, 0.5, 0.14 * bl))
-			Fx.sparkles(o, Rect2(0, 300, 540, 200), t, bl, int(6 + bl * 20))
+			o.draw_circle(Vector2(480, 200), 190.0, Color(1.0, 0.85, 0.4, 0.12 * bl))
+			o.draw_circle(Vector2(480, 200), 120.0, Color(1.0, 0.9, 0.5, 0.14 * bl))
+			Fx.sparkles(o, Rect2(0, 300, 960, 200), t, bl, int(6 + bl * 20))
 	if splash_t >= 0.0 and splash_t < 1.3:
 		var sk := splash_t / 1.3
 		for i in 14:
@@ -160,23 +177,6 @@ func _paint(o: Overlay) -> void:
 		o.draw_circle(c, 92, Color(0.15, 0.1, 0.3))
 		BoyFace.draw_face(o, c, 84.0, 1.0, t)
 		Ui.text(o, Vector2(750 - Ui.text_width("Kau dah tak rasa apa-apa.", 14) / 2.0, 400), "Kau dah tak rasa apa-apa.", 14, Color(0.7, 0.75, 0.9), 3)
-	else:
-		Ui.text(o, Vector2(574, 196), "MANDI TERAKHIR", 13, Ui.ORANGE, 4)
-		for i in PARTS.size():
-			var y := 206.0 + i * 28.0
-			var mark := active and i == current and not result_shown
-			Ui.text(o, Vector2(574, y + 17), PARTS[i], 14, Ui.GREEN if progress[i] >= 1.0 else (Color.WHITE if mark else Ui.CREAM), 3)
-			_bar(o, Rect2(660, y, 266, 22), progress[i], Ui.GREEN if progress[i] >= 1.0 else Ui.WATER)
-		var tl := clampf(time_left / time_limit, 0.0, 1.0) if not result_shown else 0.0
-		Ui.text(o, Vector2(574, 340), "MASA", 13, Ui.ORANGE, 4)
-		_bar(o, Rect2(660, 324, 266, 22), tl, Ui.ORANGE if tl > 0.25 else Color(1.0, 0.3, 0.35))
-		Ui.text(o, Vector2(574, 376), "KECERAHAN TASIK", 13, Ui.ORANGE, 4)
-		var pct := "%d%%" % int(bright * 100.0)
-		Ui.text(o, Vector2(926 - Ui.text_width(pct, 14), 376), pct, 14, Color.WHITE, 4)
-		_bar(o, Rect2(574, 384, 352, 22), bright, Color(1.0, 0.85, 0.3))
-		var mx := 574.0 + 3.0 + (352.0 - 6.0) * WIN_BRIGHTNESS
-		o.draw_line(Vector2(mx, 380), Vector2(mx, 410), Color.WHITE, 2.0)
-		Ui.text(o, Vector2(mx - 22, 424), "CUKUP 60%", 10, Color(0.85, 0.85, 0.95), 3)
 	if result_shown:
 		var pulse := 0.55 + 0.45 * sin(t * 4.0)
 		o.draw_style_box(Ui.box(Color(0.35, 0.02, 0.2, 0.9), Color(1.0, 0.72, 0.15, pulse), 10, 3), Rect2(574, 436, 352, 40))
