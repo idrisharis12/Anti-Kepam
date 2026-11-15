@@ -10,7 +10,7 @@ const WOOD := Color(0.55, 0.3, 0.1)
 const WOOD_DARK := Color(0.33, 0.16, 0.05)
 const PARCH := Color(0.99, 0.85, 0.56)
 const INK := Color(0.32, 0.15, 0.04)
-const BOX := Rect2(20, 360, 920, 160)
+const BOX := Rect2(20, 324, 920, 160)
 
 var portrait := TextureRect.new()
 var name_l := Label.new()
@@ -38,13 +38,13 @@ func _ready() -> void:
 
 	portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-	portrait.size = Vector2(340, 340)
-	portrait.position = Vector2(590, 24)
+	portrait.size = Vector2(300, 300)
+	portrait.position = Vector2(620, 14)
 	portrait.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(portrait)
 
-	var tab := _frame(Rect2(60, 322, 190, 42))
+	var tab := _frame(Rect2(60, BOX.position.y - 38, 190, 42))
 	name_l.position = Vector2(14, 5)
 	name_l.size = Vector2(162, 30)
 	name_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER

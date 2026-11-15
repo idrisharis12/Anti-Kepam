@@ -40,6 +40,9 @@ func _ready() -> void:
 	map.size = Vector2(MAP_SIZE, MAP_SIZE)
 	add_child(map)
 
+	var sky := Overlay.new()
+	sky.painter = _paint_sky
+	add_child(sky)
 	var marks := Overlay.new()
 	marks.painter = _paint_map
 	add_child(marks)
@@ -90,6 +93,16 @@ func _pill(o: CanvasItem, c: Vector2, s: String, col: Color) -> void:
 	var w := Ui.text_width(s, 13) + 16
 	o.draw_style_box(Ui.box(Color(0.08, 0.015, 0.14, 0.92), col, 9, 2), Rect2(c.x - w / 2, c.y - 10, w, 20))
 	Ui.text(o, Vector2(c.x - w / 2 + 8, c.y + 5), s, 13, Color.WHITE, 3)
+
+
+func _paint_sky(o: Overlay) -> void:
+	var k := 1.0 - clampf(float(GameState.step) / float(GameState.STATIONS.size()), 0.0, 1.0)
+	o.draw_rect(Rect2(0, 0, MAP_SIZE, MAP_SIZE), Color(0.05, 0.2, 0.04, 0.12 + 0.5 * k))
+	o.draw_rect(Rect2(0, 0, MAP_SIZE, 230), Color(0.08, 0.28, 0.06, 0.35 * k))
+	for i in 7:
+		var x := fmod(i * 97.0 + scene_t * (6.0 + i), MAP_SIZE + 160.0) - 80.0
+		var y := 40.0 + (i % 4) * 55.0 + sin(scene_t * 0.6 + i) * 10.0
+		o.draw_circle(Vector2(x, y), 50.0 + (i % 3) * 18.0, Color(0.4, 0.75, 0.15, 0.1 * k + 0.02))
 
 
 func _paint_map(o: Overlay) -> void:

@@ -31,9 +31,9 @@ He has to wash at four places around town, then jump into the Golden Lake, befor
 
 1. **R&R** - time your taps to wash without falling asleep.
 2. **Gas Station** - scrub graffiti and bacteria off a public toilet with the mouse (soap = bigger eraser) and answer the door when people knock.
-3. **LRT** - a hygiene quiz with 6 multiple-choice questions.
-4. **Shopping Mall** - wash while a ghost chases you.
-5. **Golden Lake** - the final dive. A brighter lake needs better scores at the stations.
+3. **LRT** - swipe your card through the reader, answer 6 hygiene questions, then watch him enter the stall (door opens, closes) and shower.
+4. **Shopping Mall** - run through a neon maze to four shower points while a ghost chases you.
+5. **Golden Lake** - he jumps in off the bank, then you hold SPACE for the final shower. A brighter lake needs better scores at the stations.
 
 Kuman (germs) are the currency. Spend them on soap and tissue at the hub shop.
 
@@ -80,7 +80,7 @@ Autoloads: `GameState` (progress, score, timers) and `Sfx` (music, sound effects
 
 ## Status
 
-Game jam build. Not every screen has had the same polish pass yet: the Mall, LRT and the lose result screen still use the older layout. Sound effects are generated placeholders.
+Game jam build. Sound effects are generated placeholders.
 
 ## Credits
 

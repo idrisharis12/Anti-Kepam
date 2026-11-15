@@ -21,9 +21,9 @@ func _ready() -> void:
 	Sfx.play_music("menu")
 
 	art = Sprite2D.new()
-	art.texture = load("res://assets/menu_bg.png")
-	art.position = Vector2(480, 135)
-	art.scale = Vector2(960.0 / 1024.0, 960.0 / 1024.0) * 1.08
+	art.texture = load("res://assets/menu_cover.jpg")
+	art.position = Vector2(480, 270)
+	art.scale = Vector2(0.6, 0.6) * 1.06
 	add_child(art)
 
 	glow = ColorRect.new()
@@ -56,7 +56,9 @@ func _ready() -> void:
 
 	logo_a = _logo("ANTI", Vector2(480, 78), 96, ORANGE)
 	logo_b = _logo("KEPAM", Vector2(480, 168), 124, PINK)
-	tag = _label("Mandi dulu, baru boleh cinta.", Vector2(480, 252), 22, Color(1, 0.93, 0.8))
+	tag = _label("Mandi dulu, baru boleh cinta.", Vector2(480, 352), 24, Color(1, 0.93, 0.8))
+	logo_a.visible = false
+	logo_b.visible = false
 	tag.add_theme_color_override("font_outline_color", Color(0.2, 0.0, 0.15))
 	tag.add_theme_constant_override("outline_size", 6)
 
@@ -250,7 +252,7 @@ func _input(event: InputEvent) -> void:
 
 func _process(delta: float) -> void:
 	t += delta
-	art.position = Vector2(480 + sin(t * 0.25) * 14.0, 135 + cos(t * 0.19) * 6.0)
+	art.position = Vector2(480 + sin(t * 0.25) * 14.0, 270 + cos(t * 0.19) * 6.0)
 	glow.color.a = 0.07 + 0.05 * sin(t * 1.3)
 	logo_b.rotation = sin(t * 1.1) * 0.006
 	logo_a.position.y = 78 - 96 * 0.8 + sin(t * 1.6) * 2.0

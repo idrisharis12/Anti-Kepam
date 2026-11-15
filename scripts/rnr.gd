@@ -58,6 +58,7 @@ func _build() -> void:
 	avatar.scale = Vector2(2.0, 2.0)
 	add_child(avatar)
 	avatar.nod = 0.55
+	avatar.dirt = 0.7
 
 	splash.position = FACE
 	splash.one_shot = true
@@ -322,6 +323,7 @@ func _tick(delta: float) -> void:
 		avatar.nod = minf(0.95, avatar.nod + delta * 0.03)
 	else:
 		shower_t += delta
+		avatar.dirt = maxf(0.0, avatar.dirt - delta * 0.3)
 		if shower_t > 4.0:
 			done = true
 			Sfx.stop_loop("water_loop")

@@ -59,6 +59,7 @@ func _build() -> void:
 	avatar = AvatarView.new()
 	avatar.position = Vector2(850, 480)
 	avatar.scale = Vector2(1.15, 1.15)
+	avatar.dirt = 0.6
 	add_child(avatar)
 	scrub = CPUParticles2D.new()
 	scrub.emitting = false
@@ -103,10 +104,11 @@ func _line(img: Image, a: Vector2, b: Vector2, rad: float, c: Color) -> void:
 
 
 func _germ_px(img: Image, cx: float, cy: float, r: float) -> void:
-	var rim := Color(0.12, 0.3, 0.05, 0.95)
+	var rim := DARK
+	var c: Color = NEON[randi() % NEON.size()]
 	_stamp(img, cx, cy, r + 1.5, rim)
-	_stamp(img, cx, cy, r, Color(0.5, 0.82, 0.16, 0.96))
-	_stamp(img, cx - r * 0.3, cy - r * 0.35, r * 0.3, Color(0.85, 1.0, 0.55, 0.8))
+	_stamp(img, cx, cy, r, c)
+	_stamp(img, cx - r * 0.3, cy - r * 0.35, r * 0.3, c.lightened(0.4))
 	for i in 6:
 		var a := TAU * i / 6.0
 		_stamp(img, cx + cos(a) * (r + 2.5), cy + sin(a) * (r + 2.5), 1.4, rim)
@@ -163,7 +165,27 @@ func _make_layer(label: String, r: Rect2) -> void:
 	var germs: Array[Vector2] = []
 	for i in 3:
 		germs.append(Vector2(randf_range(10, w - 10), randf_range(10, h - 10)))
-	layers.append({"name": label, "rect": r, "img": img, "tex": tex, "node": node, "grid": grid, "gw": gw, "gh": gh, "need": need, "left": need, "soapy": false, "clean": false, "germs": germs, "flash": 0.0})
+	var phrase := ""
+	if label == "Dinding":
+		phrase = "TENGAH\nBUAT\nAPA TU"
+	elif label == "Cermin":
+		phrase = "SILA PAM\nLEPAS GUNA"
+	var tl: Label = null
+	if phrase != "":
+		tl = Label.new()
+		tl.text = phrase
+		tl.size = r.size
+		tl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		tl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		tl.add_theme_font_size_override("font_size", 26 if label == "Dinding" else 14)
+		tl.add_theme_color_override("font_color", Color(0.62, 0.04, 0.06))
+		tl.add_theme_color_override("font_outline_color", Color(0.15, 0.0, 0.02))
+		tl.add_theme_constant_override("outline_size", 3)
+		tl.rotation = -0.08
+		tl.pivot_offset = r.size / 2
+		tl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		node.add_child(tl)
+	layers.append({"text": tl, "name": label, "rect": r, "img": img, "tex": tex, "node": node, "grid": grid, "gw": gw, "gh": gh, "need": need, "left": need, "soapy": false, "clean": false, "germs": germs, "flash": 0.0})
 
 
 func _erase(i: int, p: Vector2) -> void:
@@ -173,7 +195,7 @@ func _erase(i: int, p: Vector2) -> void:
 	if not L["soapy"] and GameState.soap > 0:
 		GameState.soap -= 1
 		L["soapy"] = true
-	var rad := 18 if L["soapy"] else 9
+	var rad := 28 if L["soapy"] else 15
 	var img: Image = L["img"]
 	var local := p - (L["rect"] as Rect2).position
 	for y in range(maxi(0, int(local.y) - rad), mini(img.get_height(), int(local.y) + rad)):
@@ -194,6 +216,8 @@ func _erase(i: int, p: Vector2) -> void:
 				grid[gy * gw + gx] = 1
 				L["left"] -= 1
 	L["grid"] = grid
+	if L["text"] != null:
+		(L["text"] as Label).modulate.a = clampf(float(L["left"]) / float(L["need"]) * 1.6 - 0.2, 0.0, 1.0)
 	if L["left"] <= int(L["need"] * 0.04):
 		L["clean"] = true
 		L["flash"] = 1.0
@@ -211,6 +235,10 @@ func _start_shower() -> void:
 	Sfx.loop("water_loop")
 	Sfx.play("success")
 	avatar.set_showering(true)
+	avatar.dirt = maxf(0.0, avatar.dirt - 0.3)
+	avatar.position = Vector2(272, 470)
+	avatar.scale = Vector2(1.05, 1.05)
+	avatar.z_index = 4
 	status.text = "Berkilat! Bersih tanpa vandalisme & kuman. Boy mandi sekejap..."
 	var per := 1.0 / TARGETS.size()
 	for i in PARTS.size():
@@ -254,6 +282,9 @@ func _tick(delta: float) -> void:
 		phase_t += delta
 		if phase_t > 2.2:
 			avatar.set_showering(false)
+			avatar.position = Vector2(850, 480)
+			avatar.scale = Vector2(1.15, 1.15)
+			avatar.z_index = 0
 			Sfx.stop_loop("water_loop")
 			if cleaned >= TARGETS.size():
 				_finish_station()
@@ -285,7 +316,10 @@ func _paint(o: Overlay) -> void:
 			for g in L["germs"]:
 				var gp: Vector2 = g
 				if img.get_pixel(clampi(int(gp.x), 0, img.get_width() - 1), clampi(int(gp.y), 0, img.get_height() - 1)).a > 0.1:
-					Ui.germ(o, rc.position + gp + Vector2(0, sin(t * 3.0 + gi * 2.0) * 2.5), 7.0, t + gi)
+					var ep := rc.position + gp
+					if fmod(t + gi * 1.7, 3.0) < 0.25:
+						o.draw_circle(ep + Vector2(-2.5, 0), 1.8, Color.WHITE)
+						o.draw_circle(ep + Vector2(2.5, 0), 1.8, Color.WHITE)
 				gi += 1
 	for s in sparkles:
 		var a: float = s["age"]
@@ -331,7 +365,7 @@ func _paint(o: Overlay) -> void:
 		var m := o.get_global_mouse_position()
 		for L in layers:
 			if (L["rect"] as Rect2).grow(4).has_point(m) and not L["clean"]:
-				var r := 18.0 if (L["soapy"] or GameState.soap > 0) else 9.0
+				var r := 28.0 if (L["soapy"] or GameState.soap > 0) else 15.0
 				o.draw_arc(m, r, 0, TAU, 24, Color(1, 1, 1, 0.9), 2.0)
 				break
 
