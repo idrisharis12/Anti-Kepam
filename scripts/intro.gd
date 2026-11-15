@@ -11,6 +11,7 @@ const GREEN := Color(0.2, 0.92, 0.55)
 
 var skipped := false
 var t := 0.0
+const GF_TEX := preload("res://assets/gf_portrait.png")
 var face_g := 0.2
 var sub_text := ""
 var room: TextureRect
@@ -172,7 +173,7 @@ func _paint_phone(o: Overlay) -> void:
 	var c := Vector2(58, 37)
 	o.draw_circle(c, 21, Color(0.0, 0.0, 0.0, 0.5))
 	o.draw_circle(c, 19, Color(0.55, 0.3, 0.5))
-	GfFace.draw_face(o, c, 17.0, face_g, t)
+	BoyFace.draw_portrait(o, c, 19.0, GF_TEX, Color(1, 1, 1).lerp(Color(0.6, 0.6, 0.75), clampf(face_g, 0.0, 1.0)))
 	Ui.text(o, Vector2(86, 34), "Sayang", 17, Color.WHITE, 0)
 	_heart(o, Vector2(86 + Ui.text_width("Sayang", 17) + 12, 28), 6.5 + sin(t * 5.0) * 0.6, Color(1.0, 0.25, 0.45))
 	Ui.text(o, Vector2(86, 53), sub_text, 11, GREEN if sub_text == "online" or sub_text == "menaip..." else Color(0.55, 0.65, 0.65), 0)
@@ -211,6 +212,7 @@ func _bubble_box(mine: bool) -> StyleBoxFlat:
 
 
 func _bubble(text: String, mine: bool, stamp: String) -> void:
+	text = Loc.t(text)
 	_clear_typing()
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_END if mine else BoxContainer.ALIGNMENT_BEGIN
@@ -374,5 +376,8 @@ func _phone_scene() -> void:
 
 func _go() -> void:
 	Sfx.stop_loop("rain_loop")
+	var comic := ComicStrip.new()
+	add_child(comic)
+	await comic.finished
 	GameState.intro_seen = true
 	get_tree().change_scene_to_file("res://scenes/main.tscn")

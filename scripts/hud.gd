@@ -37,18 +37,18 @@ func _draw() -> void:
 
 func _gf() -> void:
 	var g := 1.0 - clampf(GameState.gf_left / GameState.GF_TIME, 0.0, 1.0)
-	var mi := GfFace.mood_index(g)
+	var mi := BoyFace.mood_index(g)
 	var ring: Color = [Color(1.0, 0.45, 0.7), Color(0.9, 0.55, 0.4), Color(0.45, 0.5, 0.9), Color(0.35, 0.45, 0.85), Color(0.5, 0.52, 0.58)][mi]
 	var c := Vector2(40, 14)
 	draw_circle(c, 33, Ui.INK)
 	draw_circle(c, 30, ring.darkened(0.45))
-	GfFace.draw_face(self, c, 26.0, g, t)
+	BoyFace.draw_face(self, c, 26.0, g, t)
 	draw_arc(c, 30, 0, TAU, 40, ring, 3.0, true)
 	var left := int(maxf(GameState.gf_left, 0.0))
-	Ui.text(self, Vector2(80, 18), "GF KAHWIN LAIN", 11, Color(1.0, 0.6, 0.78), 3)
+	Ui.text(self, Vector2(80, 18), "MOOD KAU", 11, Color(1.0, 0.6, 0.78), 3)
 	var urgent := left < 60 and int(t * 3.0) % 2 == 0
 	Ui.text(self, Vector2(80, 40), "%d:%02d" % [floori(left / 60.0), left % 60], 22, Color(1.0, 0.35, 0.4) if urgent else Color.WHITE, 5)
-	Ui.text(self, Vector2(152, 40), GfFace.MOODS[mi], 13, ring.lightened(0.3), 3)
+	Ui.text(self, Vector2(152, 40), BoyFace.MOODS[mi], 13, ring.lightened(0.3), 3)
 
 
 func _kepam() -> void:

@@ -13,11 +13,20 @@ var showering := false
 var t := 0.0
 var flash := 0.0
 var dirt := 0.0
+var clean_look := false
+var clean_tex: Texture2D
+var dirty_tex: Texture2D
 var smoke := CPUParticles2D.new()
+var wet := 0.0
+var towel_t := 0.0
+var foam := -1.0
+var shower_time := 0.0
 
 
 func _ready() -> void:
-	sprite.texture = load("res://assets/boy_sheet.png")
+	dirty_tex = load("res://assets/boy_sheet.png")
+	clean_tex = load("res://assets/boy_clean.png")
+	sprite.texture = dirty_tex
 	sprite.region_enabled = true
 	sprite.region_rect = Rect2(0, 0, CELL.x, CELL.y)
 	sprite.centered = false
@@ -93,6 +102,11 @@ func slap() -> void:
 
 
 func set_showering(on: bool) -> void:
+	if showering and not on:
+		wet = 1.0
+		towel_t = 2.6
+	if on:
+		shower_time = 0.0
 	showering = on
 	water.emitting = on
 
@@ -100,15 +114,31 @@ func set_showering(on: bool) -> void:
 func _process(delta: float) -> void:
 	t += delta
 	flash = maxf(0.0, flash - delta * 4.0)
+	wet = maxf(0.0, wet - delta * 0.18)
+	towel_t = maxf(0.0, towel_t - delta)
+	if showering:
+		shower_time += delta
+		wet = 1.0
 	var droop := nod * deg_to_rad(38.0)
 	var bob := sin(t * 2.2) * 0.05 * nod
 	sprite.rotation = droop + bob
 	sprite.position = Vector2(0, nod * 14.0)
 	sprite.scale = Vector2(1.0, 1.0 - nod * 0.08)
 	sprite.modulate = Color.WHITE.lerp(Color(0.62, 0.78, 0.38), dirt * 0.65).lerp(Color(1.6, 0.6, 0.6), flash)
-	smoke.emitting = dirt > 0.04
+	smoke.emitting = dirt > 0.04 and not clean_look
 	smoke.speed_scale = 0.8 + dirt
 	queue_redraw()
+	if clean_look:
+		sprite.texture = clean_tex
+		sprite.modulate = Color.WHITE.lerp(Color(1.6, 0.6, 0.6), flash)
+		sprite.rotation = 0.0
+		sprite.scale = Vector2(1.0, 1.0)
+		sprite.position = Vector2(0, -absf(sin(t * 7.0)) * 3.0 if showering else sin(t * 2.0) * 1.0)
+		var cf := (1 + int(t * 8.0) % 4) if showering else 0
+		sprite.region_rect = Rect2(cf * CELL.x, CELL.y if showering else 0.0, CELL.x, CELL.y)
+		zzz.text = ""
+		return
+	sprite.texture = dirty_tex
 	var frame := 0
 	if flash > 0.25:
 		frame = 4
@@ -120,7 +150,34 @@ func _process(delta: float) -> void:
 	zzz.text = "Zzz" if nod > 0.5 else ""
 
 
+func _draw_extras() -> void:
+	if dirt > 0.04 and not clean_look:
+		for i in 7:
+			var sp := Vector2(sin(i * 2.7) * 24.0, -CELL.y * (0.18 + 0.1 * float(i % 4)) - 8.0)
+			draw_circle(sp, 4.0 + (i % 3) * 2.5, Color(0.35, 0.3, 0.1, 0.5 * dirt))
+	var f := foam
+	if f < 0.0:
+		f = clampf(shower_time / 6.0, 0.0, 1.0)
+	if showering and f > 0.02:
+		Fx.bubbles(self, Vector2(0, -CELL.y * 0.55), f, t)
+	if wet > 0.02 and not showering:
+		for i in 4:
+			var ph := fposmod(t * 1.1 + i * 0.27, 1.0)
+			var x := (i - 1.5) * 13.0
+			var y := -CELL.y * 0.62 + ph * CELL.y * 0.5
+			draw_circle(Vector2(x, y), 2.2, Color(0.6, 0.85, 1.0, 0.8 * wet * (1.0 - ph)))
+			draw_line(Vector2(x, y - 6.0), Vector2(x, y), Color(0.6, 0.85, 1.0, 0.5 * wet * (1.0 - ph)), 1.5)
+	if towel_t > 0.0:
+		var rub := sin(t * 14.0) * 3.0
+		var tc := Vector2(rub, -CELL.y * 0.66)
+		draw_rect(Rect2(tc + Vector2(-26, -10), Vector2(52, 20)), Color(0.1, 0.04, 0.1))
+		draw_rect(Rect2(tc + Vector2(-24, -8), Vector2(48, 16)), Color(0.95, 0.5, 0.65))
+		for k in 3:
+			draw_line(tc + Vector2(-24 + k * 16, -8), tc + Vector2(-24 + k * 16, 8), Color(1, 1, 1, 0.7), 2.0)
+
+
 func _draw() -> void:
+	_draw_extras()
 	if dirt <= 0.04:
 		return
 	draw_set_transform(sprite.position, sprite.rotation, sprite.scale)

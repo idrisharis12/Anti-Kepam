@@ -80,6 +80,10 @@ func _process(delta: float) -> void:
 			get_tree().change_scene_to_file("res://scenes/outro.tscn")
 		return
 	super._process(delta)
+	if active and not done and Input.is_key_pressed(KEY_SPACE):
+		Sfx.loop("water_loop")
+	else:
+		Sfx.stop_loop("water_loop")
 	var clean := 0.0
 	for p in progress:
 		clean += p
@@ -113,6 +117,10 @@ func _jump(delta: float) -> void:
 			result.text = "Terjun! Tahan SPACE untuk mandi penuh. Tasik cerah ikut skor semua mandi tadi."
 
 
+func _exit_tree() -> void:
+	Sfx.stop_loop("water_loop")
+
+
 func _set_glow(b: float) -> void:
 	var k := clampf(b / 0.9, 0.0, 1.0)
 	lake.modulate = Color(0.3, 0.3, 0.4).lerp(Color(1.15, 1.05, 0.9), k)
@@ -127,6 +135,13 @@ func _bar(o: CanvasItem, r: Rect2, v: float, col: Color) -> void:
 
 
 func _paint(o: Overlay) -> void:
+	if not early_lose:
+		var k := clampf(bright / 0.9, 0.0, 1.0)
+		if k > 0.25:
+			var bl := (k - 0.25) / 0.75
+			o.draw_circle(Vector2(270, 200), 190.0, Color(1.0, 0.85, 0.4, 0.12 * bl))
+			o.draw_circle(Vector2(270, 200), 120.0, Color(1.0, 0.9, 0.5, 0.14 * bl))
+			Fx.sparkles(o, Rect2(0, 300, 540, 200), t, bl, int(6 + bl * 20))
 	if splash_t >= 0.0 and splash_t < 1.3:
 		var sk := splash_t / 1.3
 		for i in 14:
@@ -138,11 +153,13 @@ func _paint(o: Overlay) -> void:
 	if jumping and jump_t < JUMP_DUR:
 		Ui.text(o, Vector2(60, 110), "TERJUN!", 28, Ui.ORANGE, 6)
 	if early_lose:
+		var reason: String = GameState.lose_reason
+		Fx.draw_newspaper(o, Rect2(30, 70, 480, 300), Story.line("head_" + reason), Story.line("sub_" + reason), 1.0)
 		var c := Vector2(750, 270)
 		o.draw_circle(c, 98, Ui.INK)
 		o.draw_circle(c, 92, Color(0.15, 0.1, 0.3))
-		GfFace.draw_face(o, c, 84.0, 1.0, t)
-		Ui.text(o, Vector2(750 - Ui.text_width("GF dah tak rasa apa-apa.", 14) / 2.0, 400), "GF dah tak rasa apa-apa.", 14, Color(0.7, 0.75, 0.9), 3)
+		BoyFace.draw_face(o, c, 84.0, 1.0, t)
+		Ui.text(o, Vector2(750 - Ui.text_width("Kau dah tak rasa apa-apa.", 14) / 2.0, 400), "Kau dah tak rasa apa-apa.", 14, Color(0.7, 0.75, 0.9), 3)
 	else:
 		Ui.text(o, Vector2(574, 196), "MANDI TERAKHIR", 13, Ui.ORANGE, 4)
 		for i in PARTS.size():
@@ -167,22 +184,28 @@ func _paint(o: Overlay) -> void:
 
 
 func _on_finished(score: float) -> void:
+	Sfx.stop_loop("water_loop")
 	bright = base_avg * 0.7 + score * 0.3
 	_set_glow(bright)
 	result_shown = true
 	if bright >= WIN_BRIGHTNESS:
 		GameState.won = true
 		verdict = 1
+		if diver != null:
+			diver.dirt = 0.0
+			diver.clean_look = true
+			diver.modulate = Color(3.0, 3.0, 3.0)
+			create_tween().tween_property(diver, "modulate", Color.WHITE, 0.8)
 		head.text = "MENANG!"
 		head.add_theme_color_override("font_color", Ui.GREEN)
 		sub.text = "Golden Lake bersinar emas"
 		Sfx.play_music("win")
 		Sfx.play("success")
-		result.text = "Tasik bersinar emas (%d%%)! GF kembali. Kau dah tak kepam." % int(bright * 100)
+		result.text = Loc.t("Tasik bersinar emas (%d%%)! GF kembali. Kau dah tak kepam.") % int(bright * 100)
 	else:
 		verdict = -1
 		head.text = "KALAH"
 		head.add_theme_color_override("font_color", Color(1.0, 0.3, 0.4))
 		sub.text = "Tasik tak cukup cerah"
 		Sfx.play("fail")
-		result.text = "%s (%d%%)" % [GameState.LOSE_TEXT["lake"], int(bright * 100)]
+		result.text = "%s (%d%%)" % [Loc.t(GameState.LOSE_TEXT["lake"]), int(bright * 100)]

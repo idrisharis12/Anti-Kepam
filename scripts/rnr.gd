@@ -296,7 +296,7 @@ func _tap() -> void:
 
 func _tick(delta: float) -> void:
 	t += delta
-	fails_l.text = "Gagal: %d" % fails
+	fails_l.text = Loc.t("Gagal: %d") % fails
 	var k := clampf(avatar.nod / 0.95, 0.0, 1.0)
 	sleep_fill.size.x = 326.0 * k
 	sleep_fill.color = GREEN.lerp(ORANGE, clampf(k * 2.0, 0.0, 1.0)).lerp(Color(1.0, 0.2, 0.25), clampf(k * 2.0 - 1.0, 0.0, 1.0))
@@ -311,7 +311,7 @@ func _tick(delta: float) -> void:
 	else:
 		position = Vector2.ZERO
 	if phase == 0:
-		var speed := 0.55 + hits * 0.12
+		var speed := (0.55 + hits * 0.12) * Difficulty.line_mult()
 		pos += dir * speed * delta
 		if pos >= 1.0:
 			pos = 1.0

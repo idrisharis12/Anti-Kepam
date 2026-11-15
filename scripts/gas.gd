@@ -3,16 +3,17 @@ extends ShowerBase
 # The clean room is underneath, so erasing reveals it. Soap = bigger eraser. Knocks: press E ("Kejap!").
 
 const TARGETS := [
-	["Cermin", Rect2(40, 90, 76, 180)],
-	["Sinki", Rect2(36, 276, 150, 72)],
-	["Jamban", Rect2(222, 282, 90, 118)],
-	["Dinding", Rect2(426, 30, 112, 430)],
+	["Cermin & Sinki", Rect2(0, 0, 184, 400)],
+	["Dinding", Rect2(184, 0, 208, 236)],
+	["Jamban", Rect2(184, 236, 208, 164)],
+	["Lantai", Rect2(0, 400, 392, 94)],
+	["Partisyen", Rect2(392, 0, 148, 494)],
 ]
 const CELL_PX := 6
 const TOTAL_KNOCKS := 5
 const MAX_MISSES := 3
-const HELP := "SERET mouse = gosok vandalisme & kuman (macam pemadam). Sabun = pemadam lebih besar. Ada orang ketuk: tekan E!"
-const NEON := [Color(1.0, 0.2, 0.6), Color(0.1, 0.85, 1.0), Color(1.0, 0.6, 0.1), Color(0.65, 0.3, 1.0), Color(0.6, 1.0, 0.2)]
+const HELP := "SERET mouse = mop vandalisme & kuman. Sabun = mop lebih besar. Ada orang ketuk: tekan E!"
+const MUD := [Color(0.35, 0.4, 0.1), Color(0.45, 0.3, 0.12), Color(0.25, 0.35, 0.15), Color(0.4, 0.12, 0.12)]
 const DARK := Color(0.1, 0.0, 0.13, 0.9)
 
 var layers: Array[Dictionary] = []
@@ -30,14 +31,22 @@ var scrub: CPUParticles2D
 var scrub_t := 0.0
 var sparkles: Array[Dictionary] = []
 var t := 0.0
+var dirty_img: Image
+var sweep_cleaned := 0
+var combo_bonus := 0.0
 
 
 func _build() -> void:
 	station_id = "gas"
+	NpcChat.show_on(self, "gas_attendant")
 	time_limit = 0.0
 	active = false
 	bg.color = Color(0.1, 0.03, 0.12)
 	add_backdrop("res://assets/gas_clean_bg.png")
+	dirty_img = (load("res://assets/gas_dirty_bg.png") as Texture2D).get_image()
+	if dirty_img.is_compressed():
+		dirty_img.decompress()
+	dirty_img.convert(Image.FORMAT_RGBA8)
 	body.visible = false
 	var panel := Ui.panel(self, Rect2(556, 10, 388, 474), Ui.PINK)
 	move_child(panel, 2)
@@ -96,49 +105,29 @@ func _stamp(img: Image, cx: float, cy: float, rad: float, c: Color, soft := fals
 				img.set_pixel(x, y, img.get_pixel(x, y).blend(col))
 
 
-func _line(img: Image, a: Vector2, b: Vector2, rad: float, c: Color) -> void:
-	var n := maxi(1, int(a.distance_to(b) / maxf(1.0, rad * 0.6)))
-	for i in n + 1:
-		var p := a.lerp(b, float(i) / n)
-		_stamp(img, p.x, p.y, rad, c)
-
-
 func _germ_px(img: Image, cx: float, cy: float, r: float) -> void:
-	var rim := DARK
-	var c: Color = NEON[randi() % NEON.size()]
-	_stamp(img, cx, cy, r + 1.5, rim)
+	var c: Color = MUD[randi() % MUD.size()]
+	_stamp(img, cx, cy, r + 1.5, DARK)
 	_stamp(img, cx, cy, r, c)
-	_stamp(img, cx - r * 0.3, cy - r * 0.35, r * 0.3, c.lightened(0.4))
+	_stamp(img, cx - r * 0.3, cy - r * 0.35, r * 0.3, c.lightened(0.25))
 	for i in 6:
 		var a := TAU * i / 6.0
-		_stamp(img, cx + cos(a) * (r + 2.5), cy + sin(a) * (r + 2.5), 1.4, rim)
+		_stamp(img, cx + cos(a) * (r + 2.5), cy + sin(a) * (r + 2.5), 1.4, DARK)
 
 
 func _make_layer(label: String, r: Rect2) -> void:
 	var w := int(r.size.x)
 	var h := int(r.size.y)
 	var area := w * h
-	var img := Image.create_empty(w, h, false, Image.FORMAT_RGBA8)
-	img.fill(Color(0, 0, 0, 0))
-	for i in area / 900:
-		_stamp(img, randf() * w, randf() * h, randf_range(8, 18), Color(0.3, 0.2, 0.06, 0.5), true)
-	for i in area / 2500 + 2:
-		var c: Color = NEON[randi() % NEON.size()]
-		var p := Vector2(randf_range(10, w - 10), randf_range(10, h - 10))
-		var segs := randi_range(5, 9)
-		var pts: Array[Vector2] = [p]
-		for s in segs:
-			p += Vector2.from_angle(randf() * TAU) * randf_range(8, 20)
-			p = Vector2(clampf(p.x, 4, w - 4), clampf(p.y, 4, h - 4))
-			pts.append(p)
-		for s in pts.size() - 1:
-			_line(img, pts[s], pts[s + 1], 4.5, DARK)
-		for s in pts.size() - 1:
-			_line(img, pts[s], pts[s + 1], 2.6, c)
-		var e: Vector2 = pts[pts.size() - 1]
-		_line(img, e, Vector2(e.x, mini(h - 2, int(e.y) + randi_range(8, 24))), 1.6, c)
-	for i in area / 1800 + 3:
-		_germ_px(img, randf_range(8, w - 8), randf_range(8, h - 8), randf_range(4.0, 7.0))
+	var sc := dirty_img.get_width() / 540.0
+	var x0 := clampi(int(r.position.x * sc), 0, dirty_img.get_width() - 2)
+	var y0 := clampi(int(r.position.y * sc), 0, dirty_img.get_height() - 2)
+	var x1 := clampi(int(r.end.x * sc), x0 + 1, dirty_img.get_width())
+	var y1 := clampi(int(r.end.y * sc), y0 + 1, dirty_img.get_height())
+	var img := dirty_img.get_region(Rect2i(x0, y0, x1 - x0, y1 - y0))
+	img.resize(w, h, Image.INTERPOLATE_BILINEAR)
+	for i in area / 6000 + 2:
+		_germ_px(img, randf_range(10, w - 10), randf_range(10, h - 10), randf_range(4.0, 6.5))
 	var tex := ImageTexture.create_from_image(img)
 	var node := TextureRect.new()
 	node.texture = tex
@@ -165,27 +154,7 @@ func _make_layer(label: String, r: Rect2) -> void:
 	var germs: Array[Vector2] = []
 	for i in 3:
 		germs.append(Vector2(randf_range(10, w - 10), randf_range(10, h - 10)))
-	var phrase := ""
-	if label == "Dinding":
-		phrase = "TENGAH\nBUAT\nAPA TU"
-	elif label == "Cermin":
-		phrase = "SILA PAM\nLEPAS GUNA"
-	var tl: Label = null
-	if phrase != "":
-		tl = Label.new()
-		tl.text = phrase
-		tl.size = r.size
-		tl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		tl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		tl.add_theme_font_size_override("font_size", 26 if label == "Dinding" else 14)
-		tl.add_theme_color_override("font_color", Color(0.62, 0.04, 0.06))
-		tl.add_theme_color_override("font_outline_color", Color(0.15, 0.0, 0.02))
-		tl.add_theme_constant_override("outline_size", 3)
-		tl.rotation = -0.08
-		tl.pivot_offset = r.size / 2
-		tl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		node.add_child(tl)
-	layers.append({"text": tl, "name": label, "rect": r, "img": img, "tex": tex, "node": node, "grid": grid, "gw": gw, "gh": gh, "need": need, "left": need, "soapy": false, "clean": false, "germs": germs, "flash": 0.0})
+	layers.append({"name": label, "rect": r, "img": img, "tex": tex, "node": node, "grid": grid, "gw": gw, "gh": gh, "need": need, "left": need, "soapy": false, "clean": false, "germs": germs, "flash": 0.0})
 
 
 func _erase(i: int, p: Vector2) -> void:
@@ -195,7 +164,7 @@ func _erase(i: int, p: Vector2) -> void:
 	if not L["soapy"] and GameState.soap > 0:
 		GameState.soap -= 1
 		L["soapy"] = true
-	var rad := 28 if L["soapy"] else 15
+	var rad := (28 if L["soapy"] else 15) + 4 * GameState.upgrade_level("mop")
 	var img: Image = L["img"]
 	var local := p - (L["rect"] as Rect2).position
 	for y in range(maxi(0, int(local.y) - rad), mini(img.get_height(), int(local.y) + rad)):
@@ -216,9 +185,7 @@ func _erase(i: int, p: Vector2) -> void:
 				grid[gy * gw + gx] = 1
 				L["left"] -= 1
 	L["grid"] = grid
-	if L["text"] != null:
-		(L["text"] as Label).modulate.a = clampf(float(L["left"]) / float(L["need"]) * 1.6 - 0.2, 0.0, 1.0)
-	if L["left"] <= int(L["need"] * 0.04):
+	if L["left"] <= int(L["need"] * 0.03):
 		L["clean"] = true
 		L["flash"] = 1.0
 		(L["node"] as TextureRect).visible = false
@@ -253,6 +220,8 @@ func _input(event: InputEvent) -> void:
 			if (layers[i]["rect"] as Rect2).grow(4).has_point(event.position):
 				_erase(i, event.position)
 				break
+	elif event is InputEventMouseButton and not event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		sweep_cleaned = 0
 	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_E and knocking:
 		knocking = false
 		knocks_done += 1
@@ -330,18 +299,18 @@ func _paint(o: Overlay) -> void:
 	Ui.text(o, Vector2(574, 188), "VANDALISME & KUMAN", 13, Ui.ORANGE, 4)
 	for i in layers.size():
 		var L: Dictionary = layers[i]
-		var y := 196.0 + i * 25.0
+		var y := 196.0 + i * 20.0
 		var done_l: bool = L["clean"]
-		o.draw_style_box(Ui.box(Color(0.0, 0.25, 0.1, 0.8) if done_l else Color(0.17, 0.05, 0.22), Ui.GREEN if done_l else Color(0.5, 0.2, 0.6), 6, 2), Rect2(574, y, 190, 21))
+		o.draw_style_box(Ui.box(Color(0.0, 0.25, 0.1, 0.8) if done_l else Color(0.17, 0.05, 0.22), Ui.GREEN if done_l else Color(0.5, 0.2, 0.6), 6, 2), Rect2(574, y, 190, 17))
 		if done_l:
-			o.draw_line(Vector2(582, y + 11), Vector2(587, y + 16), Ui.GREEN, 3.0)
-			o.draw_line(Vector2(587, y + 16), Vector2(596, y + 5), Ui.GREEN, 3.0)
+			o.draw_line(Vector2(582, y + 9), Vector2(587, y + 14), Ui.GREEN, 3.0)
+			o.draw_line(Vector2(587, y + 14), Vector2(596, y + 4), Ui.GREEN, 3.0)
 		else:
-			Ui.germ(o, Vector2(590, y + 11), 6.0, t + i)
-		Ui.text(o, Vector2(606, y + 16), L["name"], 13, Color(0.7, 1.0, 0.75) if done_l else Ui.CREAM, 3)
+			Ui.germ(o, Vector2(590, y + 9), 5.5, t + i)
+		Ui.text(o, Vector2(606, y + 14), L["name"], 13, Color(0.7, 1.0, 0.75) if done_l else Ui.CREAM, 3)
 		var frac := 1.0 if done_l else 1.0 - float(L["left"]) / maxf(1.0, float(L["need"]))
-		o.draw_rect(Rect2(690, y + 6, 66, 9), Color(0, 0, 0, 0.5))
-		o.draw_rect(Rect2(690, y + 6, 66 * frac, 9), Ui.GREEN if done_l else Ui.WATER)
+		o.draw_rect(Rect2(702, y + 4, 54, 9), Color(0, 0, 0, 0.5))
+		o.draw_rect(Rect2(702, y + 4, 54 * frac, 9), Ui.GREEN if done_l else Ui.WATER)
 	Ui.text(o, Vector2(574, 312), "KETUKAN PINTU", 13, Ui.ORANGE, 4)
 	for i in TOTAL_KNOCKS:
 		var c := Vector2(588 + i * 32, 334)
@@ -363,11 +332,38 @@ func _paint(o: Overlay) -> void:
 		o.draw_rect(Rect2(660, 452, 88 * clampf(knock_wait / 3.0, 0.0, 1.0), 8), Ui.ORANGE)
 	if phase == 0 and not failed:
 		var m := o.get_global_mouse_position()
-		for L in layers:
-			if (L["rect"] as Rect2).grow(4).has_point(m) and not L["clean"]:
-				var r := 28.0 if (L["soapy"] or GameState.soap > 0) else 15.0
-				o.draw_arc(m, r, 0, TAU, 24, Color(1, 1, 1, 0.9), 2.0)
-				break
+		if m.x < 545.0 and m.y < 494.0:
+			var soapy := GameState.soap > 0
+			for L in layers:
+				if L["soapy"] and (L["rect"] as Rect2).grow(4).has_point(m):
+					soapy = true
+			_mop(o, m, soapy)
+
+
+func _mop(o: CanvasItem, m: Vector2, soapy: bool) -> void:
+	var down := Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT)
+	var ang := 0.35 + (sin(t * 32.0) * 0.28 if down else 0.0)
+	var sx := 1.45 if soapy else 1.0
+	var xf := Transform2D(ang, m)
+	var hand := xf * Vector2(0, -92)
+	var neck := xf * Vector2(0, -20)
+	o.draw_line(neck, hand, Ui.INK, 8.0)
+	o.draw_line(neck, hand, Color(0.75, 0.5, 0.2), 5.0)
+	var hw := 15.0 * sx
+	var head := PackedVector2Array([xf * Vector2(-hw * 0.5, -22), xf * Vector2(hw * 0.5, -22), xf * Vector2(hw, 6), xf * Vector2(-hw, 6)])
+	o.draw_colored_polygon(head, Ui.INK)
+	var col := Color(0.85, 0.92, 1.0) if soapy else Color(0.62, 0.55, 0.45)
+	for i in 9:
+		var fx := lerpf(-hw, hw, i / 8.0)
+		var wob := sin(t * 20.0 + i) * (3.0 if down else 1.0)
+		o.draw_line(xf * Vector2(fx * 0.55, -20), xf * Vector2(fx + wob, 10 + (i % 3) * 3), col.darkened(0.25 * (i % 2)), 3.5)
+	o.draw_circle(xf * Vector2(0, -22), 6.0, Color(0.2, 0.55, 0.7))
+	if soapy:
+		for i in 5:
+			var bp := xf * Vector2(sin(t * 3.0 + i * 1.9) * hw, 4.0 + cos(t * 2.0 + i) * 6.0)
+			o.draw_circle(bp, 3.0 + (i % 3), Color(1, 1, 1, 0.75))
+		var r := 28.0
+		o.draw_arc(m, r, 0, TAU, 28, Color(1, 1, 1, 0.35), 1.5)
 
 
 func _knock_logic(delta: float) -> void:
@@ -399,4 +395,8 @@ func _knock_logic(delta: float) -> void:
 func _finish_station() -> void:
 	done = true
 	Sfx.stop_loop("water_loop")
-	GameState.finish_station("gas", clampf(1.0 - misses * 0.2, 0.4, 1.0))
+	GameState.finish_station("gas", clampf(clampf(1.0 - misses * 0.2, 0.4, 1.0) + combo_bonus, 0.4, 1.0))
+
+
+func _exit_tree() -> void:
+	Input.set_default_cursor_shape(Input.CURSOR_ARROW)

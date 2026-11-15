@@ -33,12 +33,19 @@ func _add_anim(frames: SpriteFrames, anim: String, sheet: Texture2D, row: int, c
 		frames.add_frame(anim, at)
 
 
+var foot_t := 0.0
+
+
 func _process(delta: float) -> void:
 	var v := GameState.move_vec()
 	if v == Vector2.ZERO:
 		if sprite.animation not in ["idle", "scratch"]:
 			sprite.play("idle")
 		return
+	foot_t -= delta
+	if foot_t <= 0.0:
+		foot_t = 0.32
+		Sfx.footstep()
 	position += v * SPEED * delta
 	position = position.clamp(bounds.position, bounds.end)
 	if absf(v.x) > absf(v.y):

@@ -58,6 +58,7 @@ static func rule(parent: Node, pos: Vector2, w: float, col := PINK) -> void:
 
 
 static func text(ci: CanvasItem, pos: Vector2, s: String, fs: int, col: Color, outline := 4) -> void:
+	s = Loc.t(s)
 	var f := ThemeDB.fallback_font
 	if outline > 0:
 		ci.draw_string_outline(f, pos, s, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, outline, INK)
@@ -65,6 +66,7 @@ static func text(ci: CanvasItem, pos: Vector2, s: String, fs: int, col: Color, o
 
 
 static func text_width(s: String, fs: int) -> float:
+	s = Loc.t(s)
 	return ThemeDB.fallback_font.get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 
 

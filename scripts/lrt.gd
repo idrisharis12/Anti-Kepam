@@ -26,6 +26,10 @@ const HELP := "Seret kad dari kiri ke kanan melalui slot. Ikut jalur hijau: jang
 var phase := 0
 var q := 0
 var correct := 0
+var rush_left := 0.0
+var rush_total := 1.0
+var rush_on := false
+var rush_lbl: Label
 var card_x := SLOT_L - 190.0
 var grab_dx := 0.0
 var swiping := false
@@ -42,6 +46,9 @@ var shower_t := 0.0
 var door_open := 0.0
 var t := 0.0
 var steam: Array[Dictionary] = []
+var in_bath := false
+var bath_t := 0.0
+var fade: ColorRect
 
 
 func _build() -> void:
@@ -89,9 +96,24 @@ func _build() -> void:
 	mach.z_index = 2
 	add_child(mach)
 
+	var bath := Overlay.new()
+	bath.painter = _paint_bath
+	bath.z_index = 15
+	add_child(bath)
+	fade = ColorRect.new()
+	fade.color = Color.BLACK
+	fade.size = Vector2(960, 540)
+	fade.z_index = 18
+	fade.modulate.a = 0.0
+	fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(fade)
+
 	dlg = DialogueBox.new()
 	dlg.z_index = 20
 	add_child(dlg)
+	rush_lbl = Ui.label(self, "", Vector2(280, 14), 30, Ui.ORANGE, 400)
+	rush_lbl.z_index = 25
+	rush_lbl.visible = false
 
 	var tw := create_tween()
 	tw.tween_interval(0.4)
@@ -164,7 +186,7 @@ func _judge(dt: float, reached: bool) -> void:
 		lock = true
 		GameState.add_spread(1.5)
 		Sfx.play("fail", -4.0)
-		status.text = msg + ". Cuba lagi."
+		status.text = Loc.t(msg) + Loc.t(". Cuba lagi.")
 		create_tween().tween_property(self, "card_x", SLOT_L, 0.4).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 		await get_tree().create_timer(1.0).timeout
 		if phase == 0:
@@ -180,20 +202,33 @@ func _start_questions() -> void:
 	status.text = ""
 	dlg.open("Staf Kaunter", load("res://assets/staff_portrait.png"))
 	await dlg.say("Eh, kau. Muka macam orang tak mandi tiga hari.")
-	await dlg.say("Nak masuk tandas LRT? Jawab dulu %d soalan kebersihan. Setiap jawapan betul, aku bagi satu kuman. Tekan A-D atau klik." % QUESTIONS.size())
+	await dlg.say(Loc.t("Nak masuk tandas LRT? Jawab dulu %d soalan kebersihan. Setiap jawapan betul, aku bagi satu kuman. Tekan A-D atau klik.") % QUESTIONS.size())
 	for i in QUESTIONS.size():
 		var d: Array = QUESTIONS[i]
-		var pick: int = await dlg.ask("(%d/%d)  %s" % [i + 1, QUESTIONS.size(), d[0]], d[1])
+		rush_total = Difficulty.rush_time()
+		rush_left = rush_total
+		rush_on = true
+		var pick: int = await dlg.ask("(%d/%d)  %s" % [i + 1, QUESTIONS.size(), Loc.t(d[0])], d[1])
+		rush_on = false
+		rush_lbl.visible = false
 		if d[2] == pick:
 			correct += 1
 			GameState.kuman += 1
 			Sfx.play("coin")
-			await dlg.say("Hmm, boleh tahan. +1 kuman.")
+			if rush_left > rush_total * 0.5:
+				GameState.kuman += 1
+				await dlg.say("Laju! Rush hour pun kau tak panik. +2 kuman.")
+			else:
+				await dlg.say("Hmm, boleh tahan. +1 kuman.")
+		elif pick == -1:
+			Sfx.play("fail", -6.0)
+			GameState.add_spread(4.0 * Difficulty.spread_mult())
+			await dlg.say("Lambat! Orang ramai dah beratur belakang kau.")
 		else:
 			Sfx.play("fail", -6.0)
-			GameState.add_spread(3.0)
+			GameState.add_spread(3.0 * Difficulty.spread_mult())
 			await dlg.say("...Betul ke jawapan tu? Takpelah.")
-	await dlg.say("Betul %d daripada %d. Dah, pergi mandi. Jangan lama-lama." % [correct, QUESTIONS.size()])
+	await dlg.say(Loc.t("Betul %d daripada %d. Dah, pergi mandi. Jangan lama-lama.") % [correct, QUESTIONS.size()])
 	dlg.close()
 	phase = 3
 	seq_t = 0.0
@@ -206,6 +241,13 @@ func _start_questions() -> void:
 
 func _tick(delta: float) -> void:
 	t += delta
+	if rush_on and dlg.choosing:
+		rush_left -= delta
+		rush_lbl.visible = true
+		rush_lbl.text = Loc.t("RUSH HOUR  %.1fs") % maxf(rush_left, 0.0)
+		rush_lbl.add_theme_color_override("font_color", Ui.PINK if rush_left < rush_total * 0.35 else Ui.ORANGE)
+		if rush_left <= 0.0:
+			dlg.chosen.emit(-1)
 	for s in steam:
 		s["age"] += delta
 	steam = steam.filter(func(s): return s["age"] < 1.6)
@@ -228,39 +270,120 @@ func _tick(delta: float) -> void:
 			door_open = 1.0 - clampf((seq_t - 2.4) / 0.6, 0.0, 1.0)
 		else:
 			door_open = 0.0
-			phase = 4
-			shower_t = 0.0
+			phase = 6
 			Sfx.play("click")
-			avatar.set_showering(true)
-			Sfx.loop("water_loop")
 			sc_text = "MANDI..."
 			sc_sub = "Pintu dikunci"
 			sc_state = 3
 			status.text = "Boy mandi di LRT..."
+			_enter_bath()
 		avatar.position.y = 480.0 - hop
 	elif phase == 4:
 		shower_t += delta
-		if randf() < delta * 10.0:
-			steam.append({"x": STALL.position.x + randf() * STALL.size.x, "age": 0.0})
+		bath_t += delta
+		avatar.position.y = 470.0 + sin(bath_t * 14.0) * 1.5
+		avatar.dirt = maxf(0.0, avatar.dirt - delta * 0.15)
 		for i in PARTS.size():
 			progress[i] = minf(1.0, shower_t / 4.0)
 		if shower_t >= 4.0:
-			phase = 5
-			seq_t = 0.0
+			phase = 7
 			avatar.set_showering(false)
 			Sfx.stop_loop("water_loop")
 			sc_text = "SIAP"
 			sc_sub = "Bersih!"
 			sc_state = 1
 			status.text = "Segar! Boy keluar tandas."
+			_leave_bath()
+	elif phase == 6 or phase == 7:
+		bath_t += delta
 	elif phase == 5:
 		seq_t += delta
 		if seq_t < 0.1:
 			Sfx.play("whoosh", -4.0)
 		door_open = clampf(seq_t / 0.7, 0.01, 1.0)
+		avatar.position.x = lerpf(390.0, 500.0, clampf((seq_t - 0.5) / 0.9, 0.0, 1.0))
+		avatar.z_index = 7
 		if seq_t >= 1.5:
 			done = true
 			GameState.finish_station("lrt", clampf(0.4 + correct * 0.1, 0.4, 1.0))
+
+
+func _enter_bath() -> void:
+	var tw := create_tween()
+	tw.tween_property(fade, "modulate:a", 1.0, 0.5)
+	tw.tween_callback(func():
+		in_bath = true
+		bath_t = 0.0
+		avatar.z_index = 17
+		avatar.scale = Vector2(2.0, 2.0)
+		avatar.position = Vector2(480, 470)
+		avatar.set_showering(true)
+		Sfx.loop("water_loop")
+		phase = 4
+		shower_t = 0.0)
+	tw.tween_property(fade, "modulate:a", 0.0, 0.5)
+
+
+func _leave_bath() -> void:
+	var tw := create_tween()
+	tw.tween_property(fade, "modulate:a", 1.0, 0.5)
+	tw.tween_callback(func():
+		in_bath = false
+		avatar.z_index = 7
+		avatar.scale = Vector2(1.4, 1.4)
+		avatar.position = Vector2(390, 480)
+		seq_t = 0.0
+		phase = 5)
+	tw.tween_property(fade, "modulate:a", 0.0, 0.5)
+
+
+func _paint_bath(o: Overlay) -> void:
+	if not in_bath:
+		return
+	o.draw_rect(Rect2(0, 0, 960, 494), Color(0.78, 0.9, 0.92))
+	for gx in 24:
+		for gy in 11:
+			var c := Color(0.82, 0.93, 0.95) if (gx + gy) % 2 == 0 else Color(0.74, 0.88, 0.91)
+			o.draw_rect(Rect2(gx * 40.0, gy * 40.0, 40, 40), c)
+	for gx in 25:
+		o.draw_line(Vector2(gx * 40.0, 0), Vector2(gx * 40.0, 400), Color(0.45, 0.62, 0.68), 2.0)
+	for gy in 11:
+		o.draw_line(Vector2(0, gy * 40.0), Vector2(960, gy * 40.0), Color(0.45, 0.62, 0.68), 2.0)
+	o.draw_rect(Rect2(0, 120, 960, 12), Color(0.2, 0.55, 0.62))
+	o.draw_rect(Rect2(0, 400, 960, 94), Color(0.5, 0.62, 0.68))
+	for gx in 30:
+		for gy in 3:
+			var cc := Color(0.92, 0.95, 0.97) if (gx + gy) % 2 == 0 else Color(0.35, 0.5, 0.58)
+			var y0 := 400.0 + gy * 31.0
+			o.draw_colored_polygon(PackedVector2Array([Vector2(gx * 40.0 - 10 + gy * 6, y0), Vector2(gx * 40.0 + 30 + gy * 6, y0), Vector2(gx * 40.0 + 34 + gy * 8, y0 + 31), Vector2(gx * 40.0 - 6 + gy * 8, y0 + 31)]), cc)
+	o.draw_rect(Rect2(0, 396, 960, 6), Ui.INK)
+	var sx := 480.0
+	o.draw_rect(Rect2(sx - 4, 0, 8, 70), Color(0.7, 0.72, 0.76))
+	o.draw_line(Vector2(sx - 4, 0), Vector2(sx - 4, 70), Ui.INK, 2.0)
+	o.draw_line(Vector2(sx + 4, 0), Vector2(sx + 4, 70), Ui.INK, 2.0)
+	o.draw_colored_polygon(PackedVector2Array([Vector2(sx - 14, 70), Vector2(sx + 14, 70), Vector2(sx + 50, 96), Vector2(sx - 50, 96)]), Color(0.8, 0.83, 0.87))
+	o.draw_polyline(PackedVector2Array([Vector2(sx - 14, 70), Vector2(sx + 14, 70), Vector2(sx + 50, 96), Vector2(sx - 50, 96), Vector2(sx - 14, 70)]), Ui.INK, 3.0)
+	for i in 40:
+		var x := sx - 44.0 + fmod(i * 17.3, 88.0)
+		var y := 100.0 + fmod(bath_t * 520.0 + i * 37.0, 370.0)
+		o.draw_line(Vector2(x, y), Vector2(x - 2.0, y + 14.0), Color(0.45, 0.78, 1.0, 0.85), 2.5)
+	for i in 14:
+		var bx := 440.0 + sin(bath_t * 1.5 + i * 2.1) * 70.0 + (i % 5) * 12.0
+		var by := 440.0 - fmod(bath_t * 40.0 + i * 53.0, 330.0)
+		var br := 5.0 + (i % 4) * 3.0
+		o.draw_circle(Vector2(bx, by), br, Color(1, 1, 1, 0.35))
+		o.draw_arc(Vector2(bx, by), br, 0, TAU, 12, Color(0.6, 0.85, 1.0, 0.8), 1.5)
+	for i in 8:
+		var k := fmod(bath_t * 0.5 + i * 0.125, 1.0)
+		o.draw_circle(Vector2(180.0 + i * 85.0 + sin(bath_t + i) * 20.0, 330.0 - k * 280.0), 34.0 + k * 30.0, Color(1, 1, 1, 0.2 * (1.0 - k)))
+	var prog := 0.0
+	for pv in progress:
+		prog += pv
+	prog /= PARTS.size()
+	o.draw_style_box(Ui.box(Color(0.05, 0.0, 0.1, 0.9), Ui.WATER, 10, 3), Rect2(300, 18, 360, 40))
+	Ui.text(o, Vector2(316, 44), "MANDI", 15, Color.WHITE, 3)
+	o.draw_rect(Rect2(386, 30, 258, 16), Color(0, 0, 0, 0.6))
+	o.draw_rect(Rect2(386, 30, 258.0 * prog, 16), Ui.WATER)
 
 
 func _paint_stall_back(o: Overlay) -> void:

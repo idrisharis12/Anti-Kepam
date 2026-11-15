@@ -25,11 +25,14 @@ var gf_g := 0.15
 var boy: AvatarView
 var tw_scale: Tween
 var tw_tint: Tween
+const GF_TEX := preload("res://assets/gf_portrait.png")
 var sparkle := 0.0
 var cafe := 0.0
 var hearts := 0.0
 var phone_a := 0.0
 var phone_lines: Array = []
+var credits_on := false
+var credits_t := 0.0
 
 
 func _ready() -> void:
@@ -126,7 +129,8 @@ func say(text: String, dur: float) -> void:
 
 func news(text: String) -> void:
 	ticker_bar.visible = true
-	ticker.text = "BERITA KEPAM 26  |  " + text + "          " + text
+	text = Loc.t(text)
+	ticker.text = Loc.t("BERITA KEPAM 26  |  ") + text + "          " + text
 	ticker.position.x = 960
 	Sfx.play("notify")
 	create_tween().tween_property(ticker, "position:x", -1700.0, 9.0)
@@ -141,8 +145,13 @@ func _run() -> void:
 			boy.dirt = 1.0
 			boy.position = Vector2(480, 520)
 			await say("Air tasik berkilau emas, bersih dan hangat.", 2.4)
-			create_tween().tween_property(boy, "dirt", 0.0, 3.0)
+			create_tween().tween_property(boy, "dirt", 0.0, 2.0)
 			create_tween().tween_property(self, "sparkle", 1.0, 2.0)
+			await hold(2.0)
+			boy.clean_look = true
+			boy.modulate = Color(3.0, 3.0, 3.0)
+			create_tween().tween_property(boy, "modulate", Color.WHITE, 0.8)
+			Sfx.play("success")
 			await say("Serabut hilang. Bau hilang. Dia bersinar.", 3.0)
 			await say("Untuk pertama kali dalam seminggu, dia wangi.", 2.8)
 			phone_lines = ["Kau: Jumpa sekejap je?"]
@@ -161,12 +170,16 @@ func _run() -> void:
 			await say("\"You... wangi. You betul-betul berubah.\"", 3.0)
 			await say("Mereka sembang lama. Ketawa macam dulu.", 3.0)
 			create_tween().tween_property(self, "hearts", 1.0, 1.5)
+			var br := Story.branch()
+			await say(Story.line("end_" + br + "_cap"), 3.0)
+			await say("\"" + Story.line("end_" + br) + "\"", 3.0)
 			await say("Dia jatuh cinta balik.", 3.0)
 			cafe = 0.0
 			hearts = 0.0
 			await shot("res://assets/hub_bg.png", Color(1.0, 0.7, 0.5), 1.2)
 			boy.visible = true
 			boy.dirt = 0.0
+			boy.clean_look = true
 			boy.scale = Vector2(1.8, 1.8)
 			boy.position = Vector2(120, 500)
 			create_tween().tween_property(boy, "position:x", 800.0, 7.0)
@@ -183,6 +196,17 @@ func _run() -> void:
 			await say("Dia senyum.", 2.0)
 			await say("\"Aku tak kepam.\"", 2.4)
 			await say("ANTI-KEPAM\nTAMAT", 3.0)
+			if Story.is_secret():
+				await hold(0.5)
+				phone_lines = ["Kau: " + Story.line("secret_1").substr(8)]
+				create_tween().tween_property(self, "phone_a", 1.0, 0.4)
+				Sfx.play("notify")
+				await say(Story.line("secret_1"), 3.0)
+				await say(Story.line("secret_2"), 2.6)
+				create_tween().tween_property(self, "phone_a", 0.0, 0.4)
+				Sfx.play("success")
+				await say(Story.line("secret_cap"), 3.4)
+			await _credits()
 		"lake":
 			await say("Dia terapung di tasik yang malap.", 2.4)
 			await say("Sudah empat tempat dia mandi. Masih tak cukup.", 2.8)
@@ -190,8 +214,8 @@ func _run() -> void:
 			await say("Telefon senyap. Tiada mesej baru.", 2.8)
 			await _lose_tail()
 		"viral":
-			await say("Hantu di mall tak lepaskan dia.", 2.4)
-			news("LELAKI KEPAM DIKEJAR HANTU DI MALL, VIDEO TERSEBAR!")
+			await say(Story.line("lipas_viral_1"), 2.4)
+			news(Story.line("lipas_viral_news"))
 			await hold(5.0)
 			await say("Sejuta tontonan dalam semalam. Namanya kini: \"Budak Kepam\".", 3.0)
 			await _lose_tail()
@@ -231,6 +255,54 @@ func shot(path: String, tint: Color, zoom_to := 1.3) -> void:
 	await hold(0.8)
 
 
+func _credits() -> void:
+	credits_t = 0.0
+	credits_on = true
+	await shot("res://assets/hub_bg.png", Color(0.45, 0.35, 0.55), 1.1)
+	boy.visible = false
+	var el := 0.0
+	while el < 13.0 and not skipped:
+		await get_tree().process_frame
+		el += get_process_delta_time()
+		credits_t = el
+	credits_on = false
+
+
+func _paint_credits(o: Overlay) -> void:
+	o.draw_rect(Rect2(0, 0, 960, 540), Color(0.05, 0.0, 0.1, 0.55))
+	var cast := [["credits_title", ""], ["credits_boy", "boy"], ["credits_gf", "gf"], ["credits_friend", "friend"], ["credits_lipas", "lipas"], ["credits_thanks", ""]]
+	var y0 := 560.0 - credits_t * 42.0
+	for i in cast.size():
+		var y: float = y0 + i * 118.0
+		if y < 20.0 or y > 540.0:
+			continue
+		var who: String = cast[i][1]
+		var label := Story.line(cast[i][0])
+		var fs := 34 if i == 0 else 20
+		var cx := 480.0
+		match who:
+			"boy":
+				var av := Vector2(cx - 150.0, y + 30.0)
+				_credit_boy(o, av)
+			"gf":
+				BoyFace.draw_gf_mood(o, Vector2(cx - 150.0, y + 8.0), 30.0, GF_TEX, "happy", t)
+			"friend":
+				var fc := Vector2(cx - 150.0, y + 8.0)
+				o.draw_circle(fc, 31, Ui.INK)
+				BoyFace.draw_mood(o, fc, 28.0, "happy", t)
+			"lipas":
+				Fx.draw_lipas(o, Vector2(cx - 150.0, y + 8.0), 1.5, t, true, 0.6)
+		var off := 40.0 if who != "" else -Ui.text_width(label, fs) / 2.0 + 0.0
+		var tx := (cx - 100.0) if who != "" else (cx + off)
+		Ui.text(o, Vector2(tx, y + 14.0), label, fs, Ui.ORANGE if i == 0 else Color.WHITE, 5)
+
+
+func _credit_boy(o: Overlay, p: Vector2) -> void:
+	var f := int(t * 6.0) % 4
+	var src := Rect2(f * 160.0, 142.0, 160.0, 142.0)
+	o.draw_texture_rect_region(load("res://assets/boy_clean.png"), Rect2(p + Vector2(-34, -60), Vector2(68, 60)), src)
+
+
 func _lose_tail() -> void:
 	await shot("res://assets/intro_bg.png", Color(0.3, 0.32, 0.4))
 	boy.visible = true
@@ -265,6 +337,9 @@ func _lose_tail() -> void:
 
 
 func _paint(o: Overlay) -> void:
+	if credits_on:
+		_paint_credits(o)
+		return
 	if gas > 0.01:
 		o.draw_rect(Rect2(0, 0, 960, 540), Color(0.22, 0.45, 0.04, gas * 0.5))
 		for i in 16:
@@ -292,8 +367,8 @@ func _paint(o: Overlay) -> void:
 			o.draw_line(c - Vector2(r * 2.2, 0), c + Vector2(r * 2.2, 0), Color(1, 1, 0.8, 0.6 * sparkle), 1.5)
 			o.draw_line(c - Vector2(0, r * 2.2), c + Vector2(0, r * 2.2), Color(1, 1, 0.8, 0.6 * sparkle), 1.5)
 	if cafe > 0.01:
-		o.draw_circle(Vector2(480, 215), 92, Color(0.1, 0.0, 0.13))
-		GfFace.draw_face(o, Vector2(480, 215), 84.0, 0.0, t)
+		o.draw_circle(Vector2(480, 205), 104, Color(0.1, 0.0, 0.13))
+		BoyFace.draw_gf_mood(o, Vector2(480, 205), 98.0, GF_TEX, "happy", t)
 	if hearts > 0.01:
 		for i in 8:
 			var ph := fmod(t * 0.4 + i * 0.125, 1.0)
@@ -303,19 +378,26 @@ func _paint(o: Overlay) -> void:
 			o.draw_circle(hc + Vector2(hr * 0.5, 0), hr * 0.6, Color(1, 0.3, 0.5, 1.0 - ph))
 			o.draw_colored_polygon(PackedVector2Array([hc + Vector2(-hr * 1.05, hr * 0.2), hc + Vector2(hr * 1.05, hr * 0.2), hc + Vector2(0, hr * 1.5)]), Color(1, 0.3, 0.5, 1.0 - ph))
 	if phone_a > 0.01 and phone_lines.size() > 0:
-		var ph_r := Rect2(330, 70, 300, 60 + phone_lines.size() * 52)
+		var ph_r := Rect2(40, 74, 300, 70 + phone_lines.size() * 52)
 		o.draw_style_box(Ui.box(Color(0.06, 0.02, 0.1, 0.95 * phone_a), Color(1, 0.4, 0.7, phone_a), 16, 3), ph_r)
+		BoyFace.draw_portrait(o, ph_r.position + Vector2(28, 28), 18.0, GF_TEX, Color(1, 1, 1, phone_a))
+		Ui.text(o, ph_r.position + Vector2(56, 34), "Sayang", 18, Color(1, 1, 1, phone_a), 0)
+		o.draw_line(ph_r.position + Vector2(12, 54), ph_r.position + Vector2(288, 54), Color(1, 0.4, 0.7, 0.5 * phone_a), 1.5)
 		for i in phone_lines.size():
 			var mine: bool = phone_lines[i].begins_with("Kau")
-			var bx := Rect2(ph_r.position.x + 14, ph_r.position.y + 40 + i * 52, 272, 42)
+			var bx := Rect2(ph_r.position.x + 14, ph_r.position.y + 64 + i * 52, 272, 42)
 			o.draw_style_box(Ui.box(Color(0.15, 0.5, 0.3, phone_a) if mine else Color(0.3, 0.12, 0.4, phone_a), Color(0, 0, 0, 0), 12, 0), bx)
-			Ui.text(o, bx.position + Vector2(10, 26), phone_lines[i].substr(phone_lines[i].find(":") + 2), 14, Color(1, 1, 1, phone_a), 0)
+			var msg: String = phone_lines[i].substr(phone_lines[i].find(":") + 2)
+			Ui.text(o, bx.position + Vector2(10, 26), msg, 14, Color(1, 1, 1, phone_a), 0)
 	if gf_a > 0.01:
 		o.draw_rect(Rect2(0, 0, 960, 540), Color(0, 0, 0, gf_a * 0.82))
 		if gf_a > 0.4:
 			var c := Vector2(480, 205)
-			o.draw_circle(c, 128, Color(0.1, 0.0, 0.13, gf_a))
-			GfFace.draw_face(o, c, 118.0, gf_g, t)
+			var sh := Vector2(sin(t * 40.0), cos(t * 33.0)) * 2.0 * clampf(1.0 - gf_g, 0.0, 1.0) * clampf(gf_g * 4.0, 0.0, 1.0)
+			o.draw_circle(c, 130, Color(0.1, 0.0, 0.13, gf_a))
+			var gray := Color.WHITE.lerp(Color(0.5, 0.52, 0.6), gf_g)
+			gray.a = gf_a
+			BoyFace.draw_portrait(o, c + sh, 122.0, GF_TEX, gray)
 
 
 func _leave() -> void:

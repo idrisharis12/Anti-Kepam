@@ -85,7 +85,7 @@ func _process(delta: float) -> void:
 
 
 func _wash(delta: float) -> void:
-	var rate := WASH_RATE * wash_mult * (1.5 if GameState.soap > 0 else 1.0)
+	var rate := WASH_RATE * wash_mult * (1.5 if GameState.soap > 0 else 1.0) * (1.0 + 0.2 * GameState.upgrade_level("shower"))
 	progress[current] = minf(1.0, progress[current] + delta * rate)
 	if progress[current] >= 1.0:
 		_advance()
@@ -123,9 +123,9 @@ func _refresh() -> void:
 	var s := ""
 	for i in PARTS.size():
 		var mark := ">" if (i == current and active) else "  "
-		s += "%s %s %s\n" % [mark, PARTS[i], bar(progress[i])]
+		s += "%s %s %s\n" % [mark, Loc.t(PARTS[i]), bar(progress[i])]
 	if time_limit > 0.0 and active:
-		s += "\nMasa: %d" % ceili(maxf(time_left, 0.0))
+		s += Loc.t("\nMasa: %d") % ceili(maxf(time_left, 0.0))
 	body.text = s
 	hud.text = GameState.hud_text()
 

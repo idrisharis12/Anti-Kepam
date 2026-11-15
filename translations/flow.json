@@ -1,0 +1,16 @@
+{
+"TETAPAN":"SETTINGS","PILIHAN":"OPTIONS","KEKUNCI":"KEYS","Bunyi UI":"UI sound",
+"Kurangkan gerakan":"Reduce motion","Kontras tinggi":"High contrast","Butang sentuh besar":"Large touch buttons",
+"Susunan tangan kiri":"Left-handed layout","Sari kata bunyi":"Sound captions","Senyap bila tab hilang":"Mute when tab loses focus",
+"Klik butang, kemudian tekan kekunci baru":"Click a button, then press the new key",
+"Atas":"Up","Bawah":"Down","Kiri":"Left","Kanan":"Right","Aksi / Mandi":"Action / Shower","Jawab pintu":"Answer door","Beli":"Buy",
+"Set semula kekunci":"Reset keys","LANJUT":"CONTINUE","Kali lepas:":"Last time:","Tekan lagi untuk keluar":"Press again to quit",
+"Tahan %s = langkau":"Hold %s = skip",
+"STESEN 1: R&R":"STATION 1: R&R","STESEN 2: GAS STATION":"STATION 2: GAS STATION","STESEN 3: LRT":"STATION 3: LRT","STESEN 4: MALL":"STATION 4: MALL",
+"Tekan aksi ikut rentak. Jangan tertidur!":"Tap action to the rhythm. Don't fall asleep!",
+"Gosok kotoran dengan mop. Jawab bila orang ketuk.":"Scrub the filth with the mop. Answer when someone knocks.",
+"Swipe kad, jawab soalan hygiene, lepas tu mandi.":"Swipe your card, answer hygiene questions, then shower.",
+"Lari ke TANDAS. Lipas sedang mengejar kamu!":"Run to the TOILET. The lipas is chasing you!",
+"PILIH BAHASA  /  CHOOSE LANGUAGE":"PILIH BAHASA  /  CHOOSE LANGUAGE",
+"lipas merayap":"cockroach crawling","semburan racun":"spray hissing","ketukan pintu":"door knock","bunyi seram":"creepy sound","mesej masuk":"message received","kad di-swipe":"card swiped","gagal":"failed","berjaya":"success","tamparan":"slap"
+}

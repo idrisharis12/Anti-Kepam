@@ -109,7 +109,7 @@ func _frame(r: Rect2) -> Panel:
 
 
 func open(who: String, tex: Texture2D) -> void:
-	name_l.text = who
+	name_l.text = Loc.t(who)
 	portrait.texture = tex
 	visible = true
 	choosing = false
@@ -122,6 +122,7 @@ func close() -> void:
 
 func _start_text(text: String) -> void:
 	_hide_choices()
+	text = Loc.t(text)
 	full_text = text
 	text_l.text = text
 	text_l.visible_characters = 0
@@ -142,7 +143,7 @@ func ask(text: String, options: Array) -> int:
 	await typed
 	for i in options.size():
 		var b := choice_btns[i]
-		b.text = "%s.  %s" % [char(65 + i), options[i]]
+		b.text = "%s.  %s" % [char(65 + i), Loc.t(options[i])]
 		b.size = Vector2(432, 38)
 		b.position = Vector2(BOX.position.x + 24 + (i % 2) * 440, BOX.position.y + 64 + (i / 2) * 46)
 		b.visible = true
