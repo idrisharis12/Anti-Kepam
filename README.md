@@ -84,15 +84,22 @@ Autoloads: `GameState` (progress, score, timers) and `Sfx` (music, sound effects
 
 ## Status
 
-Game jam build. Sound effects are generated placeholders.
+Game jam build for the Xsolla Game Jam (14 Nov). Submitted to GamePix for review (game ID K07902, namespace `anti-kepam`). Sound effects are generated placeholders.
+
+Not done: pause menu, animated how-to, results screen with retry, voice sounds. The GamePix SDK is only called for `loading`. Several paths are untested in play (mall hiding and timers, credits and secret ending, gamepad and key rebinding, touch buttons on a real device).
 
 ### Web build (GamePix)
 
 ```sh
 godot --headless --path . --export-release Web build/web/index.html
+cd build/web && zip -qr ../anti-kepam-web.zip .
 ```
 
 The Web preset has threads off, so it needs no special server headers. Zip the contents of `build/web/` with `index.html` at the zip root.
+
+### Web audio
+
+Browsers block sound until the player interacts with the page. On the first click, key press or tap, `Sfx` (`scripts/audio.gd`) resumes the browser audio context, unmutes Master and restarts the current music track. The "mute when tab loses focus" option is skipped on the web, because inside an iframe the focus-in event can fail to arrive and leave the game muted. If GamePix still plays no sound, the next step is a "tap to start" screen.
 
 ## Credits
 
