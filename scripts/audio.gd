@@ -265,7 +265,17 @@ func toggle_settings() -> void:
 	play("click")
 
 
+var _web_unlocked := false
+
+
 func _input(event: InputEvent) -> void:
+	if not _web_unlocked and OS.has_feature("web") and (event is InputEventMouseButton or event is InputEventKey or event is InputEventScreenTouch) and event.is_pressed():
+		_web_unlocked = true
+		_unlock_web_audio()
+		var m := music_name
+		music_name = ""
+		if m != "":
+			play_music(m)
 	if open and rebinding >= 0 and event is InputEventKey and event.pressed and not event.echo:
 		if event.keycode != KEY_ESCAPE:
 			Flow.set_key(rebinding, event.keycode)
@@ -377,7 +387,12 @@ func stinger() -> void:
 
 
 func _notification(what: int) -> void:
-	if what == NOTIFICATION_APPLICATION_FOCUS_OUT and Save.opt("mute_blur"):
+	if what == NOTIFICATION_APPLICATION_FOCUS_OUT and Save.opt("mute_blur") and not OS.has_feature("web"):
 		AudioServer.set_bus_mute(0, true)
 	elif what == NOTIFICATION_APPLICATION_FOCUS_IN:
 		AudioServer.set_bus_mute(0, false)
+
+
+func _unlock_web_audio() -> void:
+	AudioServer.set_bus_mute(0, false)
+	JavaScriptBridge.eval("try{var c=(window.GodotAudio&&GodotAudio.ctx)||null;if(c&&c.state!=='running'){c.resume();}}catch(e){}")
